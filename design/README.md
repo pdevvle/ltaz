@@ -4,8 +4,8 @@ A draft redesign of `/irrigation`, built as native Gutenberg blocks.
 
 | | |
 |---|---|
-| Page | ID **1958**, slug `irrigation-redesign`, status **draft** |
-| Preview | `leestreesaz.com/?page_id=1958` (requires login — drafts are not public) |
+| Page | ID **1958**, slug `irrigation-redesign`, status **published** |
+| URL | https://leestreesaz.com/irrigation-redesign/ |
 | Live page | `/irrigation` (ID 55) — **untouched** |
 
 ## Where things live
@@ -84,8 +84,8 @@ Astra per-page meta is set for a full-width landing layout:
 
 ## Still to check
 
-The page has not been viewed in a browser — drafts are not publicly fetchable, so
-verification was structural only. Worth confirming in the preview:
+The page has not been viewed in a browser. This environment's egress policy
+blocks leestreesaz.com, so verification was structural only. Worth confirming:
 
 1. The Elementor form renders cleanly inside the white panel on the dark section.
 2. Mobile: four-column rows stack sensibly, buttons go full width.
