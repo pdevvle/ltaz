@@ -1,0 +1,72 @@
+/* ==========================================================================
+   Irrigation landing page (page 1958) — component polish only.
+
+   This is a copy of what was added to Appearance → Customize → Additional CSS
+   on leestreesaz.com, kept in version control because the live copy otherwise
+   only exists in the database.
+
+   Everything is scoped to .lt-irr, so it cannot affect any other page.
+   Colours, padding and backgrounds are set on the blocks themselves in the
+   editor; this file only covers what block supports cannot express.
+   ========================================================================== */
+
+.lt-irr{ --lt-green:#2E6E36; --lt-green-lt:#4FB848; --lt-orange:#FA9046; --lt-line:#e4e6e1; --lt-mut:#5a5f59; }
+
+/* Brand heading treatment: Barlow, uppercase, tracked out. */
+.lt-irr h1,.lt-irr h2,.lt-irr h3{ text-transform:uppercase; letter-spacing:.055em; line-height:1.15; }
+.lt-irr h1{ letter-spacing:.03em; }
+
+/* Eyebrow label above each section heading. */
+.lt-irr .lt-eyebrow{ text-transform:uppercase; letter-spacing:.18em; font-weight:600; margin-bottom:.6rem; }
+
+/* Service cards: accent rule along the top edge. */
+.lt-irr .lt-cards .wp-block-column{ border:1px solid var(--lt-line); border-top:4px solid var(--lt-green); border-radius:6px; }
+.lt-irr .lt-cards-alt .wp-block-column{ border-top-color:var(--lt-orange); }
+.lt-irr .lt-cards a{ font-weight:600; text-decoration:none; border-bottom:2px solid var(--lt-green-lt); }
+.lt-irr .lt-cards a:hover{ border-bottom-color:var(--lt-green); }
+
+/* Numbered process steps. */
+.lt-irr .lt-steps .wp-block-column{ position:relative; padding-top:3.4rem; }
+.lt-irr .lt-steps .wp-block-column::before{
+  position:absolute; top:0; left:0; width:2.4rem; height:2.4rem; border-radius:50%;
+  background:var(--lt-green); color:#fff; font-weight:700;
+  display:flex; align-items:center; justify-content:center;
+}
+.lt-irr .lt-steps .wp-block-column:nth-child(1)::before{ content:"1"; }
+.lt-irr .lt-steps .wp-block-column:nth-child(2)::before{ content:"2"; }
+.lt-irr .lt-steps .wp-block-column:nth-child(3)::before{ content:"3"; }
+
+/* Testimonials. */
+.lt-irr .lt-quotes .wp-block-column{ border:1px solid var(--lt-line); border-radius:6px; }
+.lt-irr .lt-quotes .wp-block-quote{ margin:0; padding:0; border:0; font-style:normal; }
+.lt-irr .lt-quotes .wp-block-quote::before{
+  content:"\201C"; display:block; font-family:Georgia,serif; font-size:3rem;
+  line-height:.7; color:var(--lt-green-lt); margin-bottom:.4rem;
+}
+.lt-irr .lt-quotes cite{
+  display:block; margin-top:.9rem; font-style:normal; font-weight:600; font-size:.85rem;
+  text-transform:uppercase; letter-spacing:.07em; color:var(--lt-green);
+}
+
+/* FAQ accordions (core/details). */
+.lt-irr .wp-block-details{ border:1px solid var(--lt-line); border-radius:6px; background:#fff; padding:1rem 1.25rem; margin-bottom:.7rem; }
+.lt-irr .wp-block-details summary{ cursor:pointer; font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
+.lt-irr .wp-block-details[open] summary{ color:var(--lt-green); margin-bottom:.7rem; }
+.lt-irr .wp-block-details p,.lt-irr .wp-block-details li{ color:var(--lt-mut); }
+
+/* Related-services cards. */
+.lt-irr .lt-related .wp-block-column{ border:1px solid var(--lt-line); border-radius:6px; }
+.lt-irr .lt-related a{ font-weight:600; text-decoration:none; }
+.lt-irr .lt-related a:hover{ text-decoration:underline; }
+
+/* Value bar rules. */
+.lt-irr .lt-value .wp-block-column{ border-left:3px solid var(--lt-green-lt); padding-left:1.1rem; }
+
+/* Buttons: brand shape. Colours are set per-button in the editor. */
+.lt-irr .wp-block-button__link{ border-radius:4px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; }
+
+@media (max-width:781px){
+  .lt-irr .wp-block-buttons{ flex-direction:column; align-items:stretch; }
+  .lt-irr .wp-block-button{ width:100%; }
+  .lt-irr .wp-block-button__link{ display:block; text-align:center; }
+}
