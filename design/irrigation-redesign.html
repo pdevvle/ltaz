@@ -1,0 +1,558 @@
+<!-- wp:group {"className":"lt-irr"} -->
+<div class="wp-block-group lt-irr"><!-- wp:html -->
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,500;0,600;0,700;1,500&display=swap');
+
+.lt-irr{
+  --g:#2E6E36; --g-dk:#22522a; --g-lt:#4FB848;
+  --o:#FA9046; --o-dk:#e07a30;
+  --ink:#111111; --mut:#5a5f59; --line:#e4e6e1; --soft:#f5f7f3;
+  font-family:'Barlow',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  color:var(--ink); line-height:1.6; font-size:17px;
+}
+.lt-irr *{box-sizing:border-box}
+.lt-irr h1,.lt-irr h2,.lt-irr h3,.lt-irr h4{
+  text-transform:uppercase; letter-spacing:.055em; font-weight:600;
+  line-height:1.15; margin:0 0 .5em; color:var(--ink);
+}
+.lt-irr h1{font-size:clamp(2rem,5.2vw,3.25rem); font-weight:500; letter-spacing:.03em}
+.lt-irr h2{font-size:clamp(1.5rem,3.4vw,2.1rem)}
+.lt-irr h3{font-size:1.12rem; letter-spacing:.07em}
+.lt-irr p{margin:0 0 1rem}
+.lt-irr a{color:var(--g)}
+
+/* every section: padding + centred content, no extra wrapper divs needed */
+.lt-irr > .lt-sec{padding:clamp(44px,6vw,76px) 20px}
+.lt-irr > .lt-sec > *{max-width:1120px; margin-left:auto; margin-right:auto}
+.lt-irr .lt-eyebrow{
+  text-transform:uppercase; letter-spacing:.18em; font-size:.78rem;
+  font-weight:600; color:var(--g); margin:0 0 .9rem
+}
+.lt-irr .lt-lede{font-size:clamp(1.05rem,2vw,1.28rem); color:var(--mut); max-width:60ch}
+
+/* ---------- hero ---------- */
+.lt-irr > .lt-hero{
+  background:linear-gradient(135deg,var(--g-dk) 0%,var(--g) 55%,#357a3f 100%);
+  color:#fff; padding:clamp(56px,8vw,96px) 20px;
+}
+.lt-irr > .lt-hero h1{color:#fff}
+.lt-irr .lt-hero .lt-eyebrow{color:#bfe9c4}
+.lt-irr .lt-hero .lt-lede{color:#e8f4e9; font-size:clamp(1.08rem,2.1vw,1.35rem)}
+.lt-irr .lt-hero-meta{
+  margin-top:1.6rem; padding-top:1.2rem; border-top:1px solid rgba(255,255,255,.28);
+  color:#cfe8d2; font-size:.95rem; letter-spacing:.04em; text-transform:uppercase; font-weight:500
+}
+
+/* ---------- buttons ---------- */
+.lt-irr .wp-block-buttons{gap:.75rem; margin:1.8rem 0 0}
+.lt-irr .wp-block-button__link{
+  border-radius:4px; padding:.85em 1.7em; font-weight:600;
+  letter-spacing:.08em; text-transform:uppercase; font-size:.92rem;
+  transition:transform .15s ease, background-color .15s ease;
+}
+.lt-irr .wp-block-button__link:hover{transform:translateY(-2px)}
+.lt-irr .lt-cta .wp-block-button:first-child .wp-block-button__link{background:var(--o); color:#1a1a1a}
+.lt-irr .lt-cta .wp-block-button:first-child .wp-block-button__link:hover{background:var(--o-dk); color:#fff}
+.lt-irr .lt-cta .wp-block-button:last-child .wp-block-button__link{
+  background:transparent; color:#fff; box-shadow:inset 0 0 0 2px rgba(255,255,255,.8)
+}
+.lt-irr .lt-cta .wp-block-button:last-child .wp-block-button__link:hover{background:rgba(255,255,255,.14)}
+.lt-irr .lt-cta-dark .wp-block-button .wp-block-button__link{background:var(--g); color:#fff}
+.lt-irr .lt-cta-dark .wp-block-button .wp-block-button__link:hover{background:var(--g-dk)}
+
+/* ---------- value bar ---------- */
+.lt-irr > .lt-value{background:var(--soft); border-top:1px solid var(--line); border-bottom:1px solid var(--line)}
+.lt-irr .lt-value .wp-block-column{
+  border-left:3px solid var(--g-lt); padding-left:1.1rem
+}
+.lt-irr .lt-value h3{margin-bottom:.35em}
+.lt-irr .lt-value p{color:var(--mut); font-size:.97rem; margin:0}
+
+/* ---------- service cards ---------- */
+.lt-irr .lt-cards .wp-block-column{
+  background:#fff; border:1px solid var(--line); border-top:4px solid var(--g);
+  border-radius:6px; padding:1.6rem 1.5rem;
+  box-shadow:0 1px 3px rgba(0,0,0,.05);
+}
+.lt-irr .lt-cards.lt-cards-alt .wp-block-column{border-top-color:var(--o)}
+.lt-irr .lt-cards p{color:var(--mut); font-size:.97rem}
+.lt-irr .lt-cards p:last-child{margin-bottom:0}
+.lt-irr .lt-cards a{font-weight:600; text-decoration:none; border-bottom:2px solid var(--g-lt)}
+.lt-irr .lt-cards a:hover{border-bottom-color:var(--g)}
+
+/* ---------- steps ---------- */
+.lt-irr > .lt-steps{background:var(--soft)}
+.lt-irr .lt-steps .wp-block-column{position:relative; padding-top:3.2rem}
+.lt-irr .lt-steps .wp-block-column::before{
+  position:absolute; top:0; left:0;
+  width:2.4rem; height:2.4rem; border-radius:50%;
+  background:var(--g); color:#fff; font-weight:700; font-size:1.05rem;
+  display:flex; align-items:center; justify-content:center;
+}
+.lt-irr .lt-steps .wp-block-column:nth-child(1)::before{content:"1"}
+.lt-irr .lt-steps .wp-block-column:nth-child(2)::before{content:"2"}
+.lt-irr .lt-steps .wp-block-column:nth-child(3)::before{content:"3"}
+.lt-irr .lt-steps p{color:var(--mut); font-size:.97rem}
+.lt-irr .lt-note{
+  margin-top:2rem; padding:1rem 1.2rem; background:#fff;
+  border-left:4px solid var(--o); font-size:.97rem; color:var(--mut)
+}
+
+/* ---------- testimonials ---------- */
+.lt-irr .lt-quotes .wp-block-column{
+  background:#fff; border:1px solid var(--line); border-radius:6px; padding:1.5rem
+}
+.lt-irr .lt-quotes .wp-block-quote{
+  margin:0; padding:0; border:0; font-style:normal
+}
+.lt-irr .lt-quotes .wp-block-quote::before{
+  content:"“"; display:block; font-size:3rem; line-height:.7;
+  color:var(--g-lt); font-family:Georgia,serif; margin-bottom:.3rem
+}
+.lt-irr .lt-quotes p{font-size:.96rem; color:#333}
+.lt-irr .lt-quotes cite{
+  display:block; margin-top:.9rem; font-style:normal; font-weight:600;
+  font-size:.85rem; text-transform:uppercase; letter-spacing:.07em; color:var(--g)
+}
+
+/* ---------- FAQ ---------- */
+.lt-irr .wp-block-details{
+  border:1px solid var(--line); border-radius:6px; background:#fff;
+  padding:1rem 1.25rem; margin-bottom:.7rem
+}
+.lt-irr .wp-block-details summary{
+  cursor:pointer; font-weight:600; text-transform:uppercase;
+  letter-spacing:.05em; font-size:.98rem; list-style-position:outside
+}
+.lt-irr .wp-block-details[open] summary{color:var(--g); margin-bottom:.7rem}
+.lt-irr .wp-block-details p,.lt-irr .wp-block-details li{color:var(--mut); font-size:.97rem}
+
+/* ---------- quote / form ---------- */
+.lt-irr > .lt-quote{background:linear-gradient(135deg,#1d1f1d 0%,#2b312b 100%); color:#fff}
+.lt-irr > .lt-quote h2{color:#fff}
+.lt-irr .lt-quote .lt-lede{color:#c9d3c9}
+.lt-irr .lt-quote .lt-eyebrow{color:var(--o)}
+.lt-irr .lt-formwrap{
+  background:#fff; border-radius:8px; padding:clamp(1.2rem,3vw,2rem); margin-top:1.8rem; color:var(--ink)
+}
+.lt-irr .lt-phone{
+  display:inline-block; margin-top:.4rem; font-size:1.35rem; font-weight:700;
+  color:#fff; text-decoration:none; letter-spacing:.03em
+}
+.lt-irr .lt-phone:hover{color:var(--o)}
+
+/* ---------- related ---------- */
+.lt-irr .lt-related .wp-block-column{
+  border:1px solid var(--line); border-radius:6px; padding:1.1rem 1.25rem; background:#fff
+}
+.lt-irr .lt-related a{font-weight:600; text-decoration:none}
+.lt-irr .lt-related a:hover{text-decoration:underline}
+.lt-irr .lt-related p{margin:.3rem 0 0; font-size:.92rem; color:var(--mut)}
+
+/* ---------- mobile ---------- */
+@media (max-width:781px){
+  .lt-irr .wp-block-columns{gap:1.1rem}
+  .lt-irr .lt-value .wp-block-column{border-left-width:3px}
+  .lt-irr .wp-block-buttons{flex-direction:column; align-items:stretch}
+  .lt-irr .wp-block-button{width:100%}
+  .lt-irr .wp-block-button__link{display:block; text-align:center}
+}
+</style>
+<!-- /wp:html -->
+
+<!-- wp:group {"className":"lt-sec lt-hero"} -->
+<div class="wp-block-group lt-sec lt-hero"><!-- wp:paragraph {"className":"lt-eyebrow"} -->
+<p class="lt-eyebrow">Irrigation Service</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading {"level":1} -->
+<h1 class="wp-block-heading">Irrigation repair &amp; installation</h1>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph {"className":"lt-lede"} -->
+<p class="lt-lede">Valves, sprinkler heads, drip lines, and the leaks you can't see. We diagnose the problem and quote the fix at no charge — on-site or over the phone.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:buttons {"className":"lt-cta"} -->
+<div class="wp-block-buttons lt-cta"><!-- wp:button -->
+<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="tel:+16234005499">Call (623) 400-5499</a></div>
+<!-- /wp:button -->
+
+<!-- wp:button -->
+<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="#quote">Request a free quote</a></div>
+<!-- /wp:button --></div>
+<!-- /wp:buttons -->
+
+<!-- wp:paragraph {"className":"lt-hero-meta"} -->
+<p class="lt-hero-meta">Repair · Replace · Fresh install — 7am to 7pm</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:group -->
+
+<!-- wp:group {"className":"lt-sec lt-value"} -->
+<div class="wp-block-group lt-sec lt-value"><!-- wp:columns -->
+<div class="wp-block-columns"><!-- wp:column -->
+<div class="wp-block-column"><!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">No-charge diagnosis</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>On-site or over the phone. You get a real answer before you spend anything.</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:column -->
+
+<!-- wp:column -->
+<div class="wp-block-column"><!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Straight answers</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Whether in person or on the call, we tell you what is actually wrong and what it takes to fix it.</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:column -->
+
+<!-- wp:column -->
+<div class="wp-block-column"><!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Detailed, fair estimates</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>We save you money where it counts — and tell you plainly which things you shouldn't do without.</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:column -->
+
+<!-- wp:column -->
+<div class="wp-block-column"><!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Often fixed same visit</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Many repairs can be started, and sometimes finished, during that first consultation.</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:column --></div>
+<!-- /wp:columns --></div>
+<!-- /wp:group -->
+
+<!-- wp:group {"className":"lt-sec"} -->
+<div class="wp-block-group lt-sec"><!-- wp:paragraph {"className":"lt-eyebrow"} -->
+<p class="lt-eyebrow">Repairs</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">What we fix</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph {"className":"lt-lede"} -->
+<p class="lt-lede">Most irrigation calls come down to one of these four. All of them start with a free diagnosis.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:columns {"className":"lt-cards"} -->
+<div class="wp-block-columns lt-cards"><!-- wp:column -->
+<div class="wp-block-column"><!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Valve repair</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>The valve is a primary component of your system, and it can fail for a number of reasons. We find out which one, then quote the repair.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><a href="#quote">Get a quote →</a></p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:column -->
+
+<!-- wp:column -->
+<div class="wp-block-column"><!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Sprinkler repair</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Heads that won't pop up or won't spray are often a symptom of something further upstream. We trace it back to the real cause instead of just swapping the head.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><a href="#quote">Get a quote →</a></p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:column -->
+
+<!-- wp:column -->
+<div class="wp-block-column"><!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Leak detection &amp; repair</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>A damp spot on the ground and a water bill that jumped. If you suspect a ground leak, we'll locate it and repair it.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><a href="#quote">Get a quote →</a></p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:column -->
+
+<!-- wp:column -->
+<div class="wp-block-column"><!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Drip system repair</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Drip lines are a popular way to automate watering for trees and shrubs — and they're prone to wear, tear, and leaks. We repair and re-route them.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><a href="#quote">Get a quote →</a></p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:column --></div>
+<!-- /wp:columns --></div>
+<!-- /wp:group -->
+
+<!-- wp:group {"className":"lt-sec"} -->
+<div class="wp-block-group lt-sec"><!-- wp:paragraph {"className":"lt-eyebrow"} -->
+<p class="lt-eyebrow">Installation</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Starting from scratch</h2>
+<!-- /wp:heading -->
+
+<!-- wp:columns {"className":"lt-cards lt-cards-alt"} -->
+<div class="wp-block-columns lt-cards lt-cards-alt"><!-- wp:column -->
+<div class="wp-block-column"><!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Design &amp; consultation</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Lee's brings decades of landscaping experience to the plan itself — walking the property, laying out the zones, and sizing a system around what you're actually growing.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><a href="#quote">Request a consultation →</a></p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:column -->
+
+<!-- wp:column -->
+<div class="wp-block-column"><!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Full landscape integration</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Don't stop at the irrigation system. We can build it around the pavers, turf, and planting you're having done, so the yard goes in once instead of twice.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><a href="#quote">Request a consultation →</a></p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:column --></div>
+<!-- /wp:columns --></div>
+<!-- /wp:group -->
+
+<!-- wp:group {"className":"lt-sec lt-steps"} -->
+<div class="wp-block-group lt-sec lt-steps"><!-- wp:paragraph {"className":"lt-eyebrow"} -->
+<p class="lt-eyebrow">How it works</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Three steps, no charge</h2>
+<!-- /wp:heading -->
+
+<!-- wp:columns -->
+<div class="wp-block-columns"><!-- wp:column -->
+<div class="wp-block-column"><!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">We call to schedule</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>We reach out and set a time that works. Not every visit needs you to be there, if you'd rather not be.</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:column -->
+
+<!-- wp:column -->
+<div class="wp-block-column"><!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">A technician assesses</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>We send a qualified technician who can work out exactly what your repair or installation needs.</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:column -->
+
+<!-- wp:column -->
+<div class="wp-block-column"><!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">You get a price</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Sometimes before we've even left. From there it's your call whether we do the work — either way, the visit was free.</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:column --></div>
+<!-- /wp:columns -->
+
+<!-- wp:paragraph {"className":"lt-note"} -->
+<p class="lt-note">Most work begins within a day or so of accepting the quote, unless the job needs specialized equipment or extra crew. Some repairs get started — occasionally finished — during that first visit.</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:group -->
+
+<!-- wp:group {"className":"lt-sec"} -->
+<div class="wp-block-group lt-sec"><!-- wp:paragraph {"className":"lt-eyebrow"} -->
+<p class="lt-eyebrow">Reviews</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">What your neighbors say</h2>
+<!-- /wp:heading -->
+
+<!-- wp:columns {"className":"lt-quotes"} -->
+<div class="wp-block-columns lt-quotes"><!-- wp:column -->
+<div class="wp-block-column"><!-- wp:quote -->
+<blockquote class="wp-block-quote"><!-- wp:paragraph -->
+<p>Cameron came by to fix a broken sprinkler head that had a piece of the riser adapter snapped off inside the irrigation pipe. He was able to remove the broken piece from the pipe and then performed an irrigation systems check to make sure our law was getting adequate coverage of water. Super nice guy and very honest pricing. He is my guy for irrigation issues that I can't repair myself. He even works weekends without gouging on cost of labor for after hours call outs!</p>
+<!-- /wp:paragraph --><cite>Larry J. via Google, July 2026</cite></blockquote>
+<!-- /wp:quote --></div>
+<!-- /wp:column -->
+
+<!-- wp:column -->
+<div class="wp-block-column"><!-- wp:quote -->
+<blockquote class="wp-block-quote"><!-- wp:paragraph -->
+<p>Cameron and his team did a great job! We reached out to him for some tree trimming and the removal of two trees over our pool. Not an easy task but they took care of it safely and efficiently. He also identified a few issues with the irrigation system and outdoor piping, and took care of everything for a very fair price. He showed me that he really knew his stuff and took the time to do it right. Would highly recommend for any landscaping project.</p>
+<!-- /wp:paragraph --><cite>Peter M. via Google, July 2026</cite></blockquote>
+<!-- /wp:quote --></div>
+<!-- /wp:column -->
+
+<!-- wp:column -->
+<div class="wp-block-column"><!-- wp:quote -->
+<blockquote class="wp-block-quote"><!-- wp:paragraph -->
+<p>We were very happy with the work they provided. They showed up promptly when scheduled. They were friendly, professional, and worked with us so we understood the process. We highly recommend this company.</p>
+<!-- /wp:paragraph --><cite>Joan G. via Google, July 2026</cite></blockquote>
+<!-- /wp:quote --></div>
+<!-- /wp:column --></div>
+<!-- /wp:columns -->
+
+<!-- wp:paragraph -->
+<p><a href="https://www.google.com/search?q=google+lees+trees&amp;oq=google+lees+trees&amp;aqs=chrome..69i57j69i64j69i60l2.8904j0j7&amp;sourceid=chrome&amp;ie=UTF-8#lrd=0x872b69f55a71f4d5:0xc81a8d35e38b7fab,1,,,," target="_blank" rel="noreferrer noopener">Read more reviews on Google →</a></p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:group -->
+
+<!-- wp:group {"className":"lt-sec"} -->
+<div class="wp-block-group lt-sec"><!-- wp:paragraph {"className":"lt-eyebrow"} -->
+<p class="lt-eyebrow">Questions</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Irrigation service FAQs</h2>
+<!-- /wp:heading -->
+
+<!-- wp:details -->
+<details class="wp-block-details"><summary>What irrigation work do you perform?</summary><!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li><strong>Installation</strong> of a brand new system, including planning.</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li><strong>Repairs</strong> of all sorts.</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li><strong>Replacements</strong> of entire systems, or just sections.</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li><strong>Leak detection</strong> and inspections.</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list --></details>
+<!-- /wp:details -->
+
+<!-- wp:details -->
+<details class="wp-block-details"><summary>How much does irrigation repair cost?</summary><!-- wp:paragraph -->
+<p>Repair prices vary widely, and for good reason. Whether the break is above or below ground, whether the cause is already known, and whether it sits somewhere awkward to reach all change the number.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>That's why the diagnosis is free — we'd rather find out what's actually wrong than guess at a price. <a href="#quote">Request a quote</a> and we'll get you a real one.</p>
+<!-- /wp:paragraph --></details>
+<!-- /wp:details -->
+
+<!-- wp:details -->
+<details class="wp-block-details"><summary>What's involved in a free repair consultation?</summary><!-- wp:paragraph -->
+<p>Three steps, and none of them cost anything:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list {"ordered":true} -->
+<ol class="wp-block-list"><!-- wp:list-item -->
+<li>We call you to schedule an appointment. Not all visits require you to be there if you'd rather not be.</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>We send a qualified technician who can assess what the repair needs.</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>After the visit we furnish you with a price — sometimes while we're still on location.</li>
+<!-- /wp:list-item --></ol>
+<!-- /wp:list -->
+
+<!-- wp:paragraph -->
+<p>At that point it's up to you whether we do the work. Either way, the visit was free.</p>
+<!-- /wp:paragraph --></details>
+<!-- /wp:details -->
+
+<!-- wp:details -->
+<details class="wp-block-details"><summary>How quickly can the work be done?</summary><!-- wp:paragraph -->
+<p>Sometimes immediately — work can be started, or even completed, during the initial consultation. Repairs like finding and fixing a leak may take a day or so. Most other work begins within a day or so of you accepting the quote, unless it needs specialized equipment or additional crew.</p>
+<!-- /wp:paragraph --></details>
+<!-- /wp:details --></div>
+<!-- /wp:group -->
+
+<!-- wp:group {"className":"lt-sec lt-quote"} -->
+<div class="wp-block-group lt-sec lt-quote"><!-- wp:heading {"level":2,"anchor":"quote"} -->
+<h2 class="wp-block-heading" id="quote">Request your free quote</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph {"className":"lt-lede"} -->
+<p class="lt-lede">Tell us what's going on and we'll be in touch to schedule. No charge for the diagnosis, whether we come out or work it through over the phone.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:html -->
+<p style="margin:0"><a class="lt-phone" href="tel:+16234005499">(623) 400-5499</a><br><span style="color:#c9d3c9;font-size:.9rem;letter-spacing:.06em;text-transform:uppercase">7am to 7pm</span></p>
+<!-- /wp:html -->
+
+<!-- wp:html -->
+<div class="lt-formwrap">[elementor-template id="155"]</div>
+<!-- /wp:html --></div>
+<!-- /wp:group -->
+
+<!-- wp:group {"className":"lt-sec lt-related"} -->
+<div class="wp-block-group lt-sec lt-related"><!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">While we're out there</h2>
+<!-- /wp:heading -->
+
+<!-- wp:columns -->
+<div class="wp-block-columns"><!-- wp:column -->
+<div class="wp-block-column"><!-- wp:paragraph -->
+<p><a href="/tree-service/">Tree Service →</a></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>Trimming, removal, and emergency work.</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:column -->
+
+<!-- wp:column -->
+<div class="wp-block-column"><!-- wp:paragraph -->
+<p><a href="/artificial-grass/">Artificial Grass →</a></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>Turf installation and upgrades.</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:column -->
+
+<!-- wp:column -->
+<div class="wp-block-column"><!-- wp:paragraph -->
+<p><a href="/paver-installation/">Paver Installation →</a></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>Patios, walkways, and driveways.</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:column --></div>
+<!-- /wp:columns --></div>
+<!-- /wp:group --></div>
+<!-- /wp:group -->
