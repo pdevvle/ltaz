@@ -90,3 +90,51 @@ verification was structural only. Worth confirming in the preview:
 1. The Elementor form renders cleanly inside the white panel on the dark section.
 2. Mobile: four-column rows stack sensibly, buttons go full width.
 3. No block shows an "unexpected or invalid content" notice in the editor.
+
+## Conversion tracking
+
+The site runs two Google tags, both injected site-wide by Site Kit, so both
+already load on this page with no extra work:
+
+| | |
+|---|---|
+| GA4 | `G-GW25RY0E3V` (`useSnippet: true`) |
+| Google Tag Manager | `GTM-5G6NT4G` (`useSnippet: true`) |
+
+Site Kit's Ads `conversionID` is empty, so any Google Ads conversion for
+tap-to-call / contact is configured inside GTM, not in WordPress. GTM trigger
+definitions live in the GTM UI and cannot be read from here.
+
+### Phone link href must stay `tel:6234005499`
+
+Every existing tap-to-call on the site uses exactly `tel:6234005499` — the
+header button (`Elementor Header #15`, widget `5c2ef48`) and both footer
+elements (`Elementor Footer #536`, widgets `b4852c4` and `dcad2d9`).
+
+This page originally used the E.164 form `tel:+16234005499`. That is technically
+the better href, but a GTM Click URL trigger set to *equals* or *contains*
+`tel:6234005499` does not match it — the `+1` breaks both comparisons. The links
+were changed to `tel:6234005499` to match the rest of the site. **Do not
+"improve" them back to `+1` without first checking the GTM trigger.**
+
+### The quote form is the tracked form
+
+The page embeds Elementor template 155 by shortcode rather than rebuilding the
+form in blocks. If the contact conversion fires on an Elementor form submission,
+it fires here too, because it is literally the same form.
+
+### The header "Contact" button already works here
+
+That button links to `#quote`, which is a real anchor on this page.
+
+## Two things worth checking on the live site
+
+1. **The header tap-to-call button is hidden on every breakpoint.** Widget
+   `5c2ef48` carries `hide_desktop`, `hide_tablet` *and* `hide_mobile`, so it
+   never renders. The working mobile call CTA is the sticky footer bar
+   (`Elementor Footer #536`), which is desktop/tablet-hidden and sticky on
+   mobile. If tap-to-call conversions look low, this is a likely cause and it is
+   unrelated to this page.
+2. **Site Kit is set to `trackingDisabled: ["loggedinUsers"]`.** Testing the
+   page while signed in to WordPress fires nothing. Verify tags in a logged-out
+   or incognito window, or GA4 DebugView will look broken when it is fine.
