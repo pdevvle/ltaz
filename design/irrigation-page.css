@@ -70,3 +70,13 @@
   .lt-irr .wp-block-button{ width:100%; }
   .lt-irr .wp-block-button__link{ display:block; text-align:center; }
 }
+
+/* Card photos: crop to a uniform band so mixed source aspect ratios
+   (some of the library is portrait) still line up across a row. */
+.lt-irr .lt-cards figure.wp-block-image,
+.lt-irr .lt-related figure.wp-block-image{ margin:0 0 1rem; }
+.lt-irr .lt-cards figure.wp-block-image img,
+.lt-irr .lt-related figure.wp-block-image img{
+  display:block; width:100%; height:190px; object-fit:cover; border-radius:4px;
+}
+.lt-irr .lt-related figure.wp-block-image img{ height:150px; }
