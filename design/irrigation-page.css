@@ -80,3 +80,34 @@
   display:block; width:100%; height:190px; object-fit:cover; border-radius:4px;
 }
 .lt-irr .lt-related figure.wp-block-image img{ height:150px; }
+
+/* Reviews carousel — CSS scroll-snap, no JavaScript and no plugin.
+   All three reviews stay in the DOM and in the page source, so nothing is
+   hidden from crawlers or from anyone who simply scrolls. Native swipe on
+   touch, snapping, and a visible track so desktop users know it scrolls. */
+.lt-irr .lt-quotes{
+  flex-wrap:nowrap;
+  overflow-x:auto;
+  overscroll-behavior-x:contain;
+  scroll-snap-type:x mandatory;
+  scroll-padding:0;
+  gap:1rem;
+  padding-bottom:1rem;
+  scrollbar-width:thin;
+  scrollbar-color:#4FB848 #e4e6e1;
+}
+/* Core forces flex-basis:100%!important on columns under 782px, so this
+   needs !important plus higher specificity to win on mobile. */
+.lt-irr .lt-quotes .wp-block-column{
+  flex:0 0 clamp(255px,80%,400px) !important;
+  scroll-snap-align:start;
+}
+.lt-irr .lt-quotes::-webkit-scrollbar{ height:8px; }
+.lt-irr .lt-quotes::-webkit-scrollbar-track{ background:#e4e6e1; border-radius:4px; }
+.lt-irr .lt-quotes::-webkit-scrollbar-thumb{ background:#4FB848; border-radius:4px; }
+.lt-irr .lt-quotes::-webkit-scrollbar-thumb:hover{ background:#2E6E36; }
+
+/* Respect reduced-motion: snapping can be disorienting. */
+@media (prefers-reduced-motion:reduce){
+  .lt-irr .lt-quotes{ scroll-snap-type:none; scroll-behavior:auto; }
+}

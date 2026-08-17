@@ -138,3 +138,32 @@ That button links to `#quote`, which is a real anchor on this page.
 2. **Site Kit is set to `trackingDisabled: ["loggedinUsers"]`.** Testing the
    page while signed in to WordPress fires nothing. Verify tags in a logged-out
    or incognito window, or GA4 DebugView will look broken when it is fine.
+
+## Reviews carousel
+
+The three reviews sit in a horizontal scroll-snap track rather than a static row.
+
+It is **CSS only** — no JavaScript, no carousel plugin, no new block. The markup
+is still a plain `core/columns` with three `core/column` children; only the
+`.lt-quotes` CSS changed. That means:
+
+- All three reviews remain in the DOM and in the rendered page source, so they
+  are still indexable and still readable by screen readers. This is the
+  difference between this and the Elementor "slide to learn more" carousels that
+  were removed from the old page — those hid *service copy* behind a JS
+  interaction, which cost both conversions and crawlable text.
+- Nothing breaks if JavaScript fails; it degrades to a scrollable row.
+- `prefers-reduced-motion` disables snapping.
+
+Card width is `clamp(255px, 80%, 400px)`, chosen so the next card always peeks
+past the right edge — that peek is the affordance telling people it scrolls,
+which is why there is no "swipe →" label. On desktop the three cards total more
+than the 1120px container, so it scrolls there too.
+
+Core applies `flex-basis:100%!important` to columns below 782px, so the carousel
+rule needs both `!important` and higher specificity to win on mobile. Keep that
+if you edit it.
+
+If you want arrows, dots, or autoplay, those need JavaScript — say so and I can
+add a small vanilla script. Autoplay is worth avoiding: it hurts accessibility
+and reliably reduces engagement.
