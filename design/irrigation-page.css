@@ -111,3 +111,29 @@
 @media (prefers-reduced-motion:reduce){
   .lt-irr .lt-quotes{ scroll-snap-type:none; scroll-behavior:auto; }
 }
+
+/* ---- Reviews carousel, hardened ------------------------------------------
+   Restated with !important and without depending on core's .wp-block-columns
+   flex rules surviving WP Rocket's Remove Unused CSS pass. Also bounds the
+   track itself, so it overflows (and therefore scrolls) even if the block
+   layout's contentSize is not applied. Cards widened so two fit and the third
+   clearly peeks - at 1120px that is 2 full cards plus ~180px of the next. */
+.lt-irr .lt-quotes{
+  display:flex !important;
+  flex-wrap:nowrap !important;
+  overflow-x:auto !important;
+  max-width:1120px;
+  margin-left:auto;
+  margin-right:auto;
+  align-items:stretch;
+  scroll-snap-type:x mandatory;
+  overscroll-behavior-x:contain;
+  gap:1rem !important;
+  padding-bottom:1rem;
+}
+.lt-irr .lt-quotes > .wp-block-column{
+  flex:0 0 clamp(280px,84%,460px) !important;
+  width:auto !important;
+  max-width:none !important;
+  scroll-snap-align:start;
+}

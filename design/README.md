@@ -167,3 +167,27 @@ if you edit it.
 If you want arrows, dots, or autoplay, those need JavaScript — say so and I can
 add a small vanilla script. Autoplay is worth avoiding: it hurts accessibility
 and reliably reduces engagement.
+
+### If the carousel does not scroll
+
+The site runs WP Rocket 3.10.7 with **Remove Unused CSS enabled**
+(`remove_unused_css: 1`), alongside CSS minify and concatenate. RUCSS builds a
+stripped stylesheet per URL and caches it. A CSS-only change does not always
+invalidate that cache, so newly added Customizer rules can be missing from the
+served page while being present in the database.
+
+Order of things to try:
+
+1. Hard-refresh logged out (`Cmd/Ctrl+Shift+R`). WP Rocket has
+   `cache_logged_user: 0`, so a logged-in view and a logged-out view are served
+   very differently.
+2. Purge WP Rocket. Saving any change to the page also purges that URL.
+3. If it still does not scroll, add `.lt-irr` to **WP Rocket → File Optimization
+   → Remove Unused CSS → safelist**, or toggle RUCSS off briefly to confirm it
+   is the cause. Safelisting only ever preserves CSS, so it cannot break
+   anything else.
+
+The `wp_rocket_settings` option was deliberately **not** edited from here.
+`update_option` replaces the whole array, and a mistake would silently reset
+every WP Rocket setting on a live site. Adding one safelist entry through the
+plugin UI is the safe path.
