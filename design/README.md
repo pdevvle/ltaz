@@ -191,3 +191,51 @@ The `wp_rocket_settings` option was deliberately **not** edited from here.
 `update_option` replaces the whole array, and a mistake would silently reset
 every WP Rocket setting on a live site. Adding one safelist entry through the
 plugin UI is the safe path.
+
+## Desktop call popup
+
+Desktop hides the phone number and exposes a **Call us** button that opens a
+modal with the number at large size. Mobile is unchanged — the existing tel:
+button and the sticky footer bar already work and are already tracked.
+
+Two instances, one in the hero and one in the quote section. Both are
+`core/details` blocks with `className="lt-callpop"`, containing a `core/group`
+panel with the number as a `tel:6234005499` link.
+
+### Why `<details>` and not a JS modal
+
+WP Rocket runs Remove Unused CSS, minify, concatenate, `defer_all_js` and
+`delay_js` on this site. A JS-driven modal has two failure modes here: the
+script gets delayed past the first click, or the CSS that hides the panel gets
+stripped. `<details>` fails safe — with no CSS at all it is still a native
+disclosure that opens on click and shows the number. Worst case it looks plain;
+it never becomes a dead button.
+
+### GTM hooks
+
+| What | Trigger |
+|---|---|
+| Popup opener (desktop intent-to-call) | Click Element matches CSS selector `.lt-callpop summary, .lt-callpop summary *` |
+| The number itself | Existing Click URL trigger for `tel:6234005499` — unchanged, fires inside the popup too |
+
+Use **Click - All Elements**, not Click - Just Links: `<summary>` is not an
+anchor. The `summary *` half of the selector matters because the click target
+is often a child node of the summary rather than the summary itself.
+
+### Visibility rules
+
+| Breakpoint | Shown | Hidden |
+|---|---|---|
+| ≥782px | `.lt-callpop` | `.lt-telbtn`, `.lt-telinline` |
+| ≤781px | `.lt-telbtn`, `.lt-telinline` | `.lt-callpop` |
+
+`.lt-telbtn` is on the hero call button, `.lt-telinline` on the quote-section
+phone line. Both were given explicit classes rather than being targeted with
+`:has(a[href^="tel:"])`, so hiding does not depend on `:has()` support.
+
+### Known limitation
+
+The modal closes by clicking the **Call us** button again — the summary is
+lifted above the backdrop with `z-index` for exactly that. Backdrop-click and
+Escape-to-close both need JavaScript. Worth adding if the popup earns its keep;
+say so and it is a small vanilla script.

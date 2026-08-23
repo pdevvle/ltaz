@@ -137,3 +137,68 @@
   max-width:none !important;
   scroll-snap-align:start;
 }
+
+/* ==== Desktop call popup ==================================================
+   Mobile keeps the existing behaviour: the tel: button plus the sticky footer
+   bar, both of which already fire the GTM tel: trigger.
+   Desktop hides the raw number and exposes a "Call us" button that opens a
+   modal containing the number at large size.
+
+   Built on <details>, so if this CSS is ever stripped (WP Rocket's Remove
+   Unused CSS) it degrades to a native disclosure that still opens and still
+   shows the number - not a dead button.
+
+   GTM hooks:
+     opener  -> Click Element matches CSS selector  .lt-callpop summary, .lt-callpop summary *
+     number  -> existing Click URL trigger for tel:6234005499 (unchanged)
+   ========================================================================= */
+
+.lt-irr .lt-callpop{ display:none; border:0; background:none; padding:0; margin:1.6rem 0 0; }
+.lt-irr .lt-callpop > summary{
+  display:inline-block; cursor:pointer; list-style:none;
+  background:#FA9046; color:#1a1a1a;
+  padding:.85em 1.7em; border-radius:4px;
+  font-weight:600; letter-spacing:.08em; text-transform:uppercase; font-size:.92rem;
+}
+.lt-irr .lt-callpop > summary::-webkit-details-marker{ display:none; }
+.lt-irr .lt-callpop > summary::marker{ content:""; }
+.lt-irr .lt-callpop > summary:hover{ background:#e07a30; color:#fff; }
+
+/* Backdrop. Sits under the panel but over the page; the summary is lifted
+   above it so clicking the button again closes the modal. */
+.lt-irr .lt-callpop[open]::before{
+  content:""; position:fixed; inset:0; background:rgba(10,14,10,.66); z-index:9998;
+}
+.lt-irr .lt-callpop[open] > summary{ position:relative; z-index:10000; }
+
+.lt-irr .lt-callpop[open] > .lt-callpop-panel{
+  position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+  z-index:9999; background:#fff; color:#111;
+  padding:2.6rem 3rem; border-radius:10px; text-align:center;
+  width:min(92vw,460px); box-shadow:0 24px 70px rgba(0,0,0,.4);
+}
+.lt-irr .lt-callpop-label{
+  margin:0 0 .5rem; font-size:.78rem; font-weight:600;
+  letter-spacing:.18em; text-transform:uppercase; color:#2E6E36;
+}
+.lt-irr .lt-callpop-num{ margin:0; line-height:1.1; }
+.lt-irr .lt-callpop-num a{
+  font-size:clamp(2rem,4.5vw,2.9rem); font-weight:700; letter-spacing:.02em;
+  color:#111; text-decoration:none; white-space:nowrap;
+}
+.lt-irr .lt-callpop-num a:hover{ color:#2E6E36; }
+.lt-irr .lt-callpop-hrs{
+  margin:.6rem 0 0; font-size:.85rem; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; color:#5a5f59;
+}
+
+/* Desktop: number hidden, popup shown. */
+@media (min-width:782px){
+  .lt-irr .lt-callpop{ display:block; }
+  .lt-irr .lt-telbtn{ display:none !important; }
+  .lt-irr .lt-telinline{ display:none !important; }
+}
+/* Mobile: popup suppressed, existing tel: button and sticky footer do the job. */
+@media (max-width:781px){
+  .lt-irr .lt-callpop{ display:none !important; }
+}
