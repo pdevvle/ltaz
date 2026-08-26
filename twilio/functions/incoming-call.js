@@ -17,21 +17,18 @@ exports.handler = function (context, event, callback) {
     method: 'POST',
   });
 
+  const menu =
+    'Press 1 for a free quote. ' +
+    'Press 2 about an existing job. ' +
+    'Press 3 for anything else. ' +
+    'Press 4 to leave a voicemail.';
+
   if (event.retry === '1') {
-    gather.say(
-      { voice: 'Polly.Joanna' },
-      'Sorry, I did not get that. ' +
-        'Press 1 for a free quote. ' +
-        'Press 2 about an existing job. ' +
-        'Press 3 for anything else.'
-    );
+    gather.say({ voice: 'Polly.Joanna' }, `Sorry, I did not get that. ${menu}`);
   } else {
     gather.say(
       { voice: 'Polly.Joanna' },
-      "Thank you for calling Lee's Trees. " +
-        'Press 1 for a free quote. ' +
-        'Press 2 about an existing job. ' +
-        'Press 3 for anything else.'
+      `Thank you for calling Lee's Tree Service, Irrigation, and Landscaping. ${menu}`
     );
   }
 

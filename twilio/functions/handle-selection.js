@@ -11,6 +11,7 @@
  *   1  free quote
  *   2  existing job
  *   3  anything else
+ *   4  leave a voicemail (recorded, no dial)
  *   0  caller waited through the menu without pressing anything
  *      (sent here by the redirect in incoming-call.js)
  * Anything else is invalid and replays the menu once.
@@ -24,6 +25,7 @@ exports.handler = function (context, event, callback) {
     1: 'free quote',
     2: 'existing job',
     3: 'other',
+    4: 'voicemail',
     0: 'no selection',
   };
 
@@ -38,6 +40,11 @@ exports.handler = function (context, event, callback) {
     `menu selection: ${digit} (${reasons[digit]}) from ${event.From || 'unknown'}`
   );
 
+  if (digit === '4') {
+    twiml.redirect({ method: 'POST' }, 'voicemail');
+    return callback(null, twiml);
+  }
+
   twiml.say({ voice: 'Polly.Joanna' }, 'Connecting you now.');
   twiml.dial(
     {
@@ -45,14 +52,14 @@ exports.handler = function (context, event, callback) {
       // when the forwarded leg is answered on the cell.
       callerId: event.To,
       answerOnBridge: true,
-      timeout: 25,
+      // The cell's carrier voicemail picks up at ~14 seconds. Giving up
+      // at 12 keeps unanswered calls in Twilio, where dial-status routes
+      // them to our own voicemail instead of the carrier's.
+      timeout: 12,
+      action: 'dial-status',
+      method: 'POST',
     },
     forwardTo
-  );
-
-  twiml.say(
-    { voice: 'Polly.Joanna' },
-    'Sorry, no one is available to take your call. Please try again later.'
   );
 
   return callback(null, twiml);
