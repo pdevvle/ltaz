@@ -23,7 +23,8 @@ A call to 623-400-5499 hears:
 - **4** → voicemail (below).
 - **Nothing pressed** → connected anyway after the 8-second gather timeout
   (logged as `no selection`).
-- **Any other digit** → menu replays once with a shorter re-prompt.
+- **Any other digit** → menu replays once with a shorter re-prompt; a
+  second invalid digit connects the call rather than looping the menu.
 
 The dial gives up after **12 seconds** — deliberately, because the cell's
 carrier voicemail picks up at ~14 seconds. Unanswered calls therefore come
@@ -146,7 +147,7 @@ Other behavior worth knowing:
 ```sh
 npm install -g twilio-cli
 twilio plugins:install @twilio-labs/plugin-serverless
-cd twilio
+cd twilio   # the package.json here is what makes this a deployable project
 twilio serverless:deploy
 twilio phone-numbers:update +16234005499 --voice-url=<deployed /ivr URL>
 ```
@@ -161,7 +162,8 @@ Call 623-400-5499:
   greeting for the current time of day and can leave a message; the
   transcription SMS arrives on the cell shortly after they hang up.
 - Press **4** → straight to voicemail; same SMS afterward.
-- Press **9** → menu replays with the "Sorry, I did not get that" prompt.
+- Press **9** → menu replays with the "Sorry, I did not get that" prompt;
+  press **9** again → the call connects instead of looping.
 - Press nothing → after ~8 seconds the call connects anyway.
 - Call before 7am or after 7pm Arizona time → no menu at all; the alternate
   greeting plays and recording starts. Nobody's cell rings.

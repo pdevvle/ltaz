@@ -101,11 +101,17 @@ exports.handler = async function (context, event, callback) {
   switch (event.step) {
     // ------------------------------------------------- a digit was pressed
     case 'selection': {
-      const digit = event.Digits || '';
+      let digit = event.Digits || '';
 
       if (!(digit in REASONS)) {
-        twiml.redirect({ method: 'POST' }, `${base}?retry=1`);
-        break;
+        if (event.retry !== '1') {
+          twiml.redirect({ method: 'POST' }, `${base}?retry=1`);
+          break;
+        }
+        // Second invalid digit in a row: stop looping the menu and treat
+        // it as no selection — a confused caller is better connected to a
+        // person than stuck pressing keys.
+        digit = '0';
       }
 
       // Shows up in the Function logs and the call's request inspector, so
@@ -189,10 +195,17 @@ exports.handler = async function (context, event, callback) {
     case 'notify': {
       const notifyTo = context.FORWARD_TO || DEFAULT_FORWARD_TO;
 
-      const transcription =
+      let transcription =
         event.TranscriptionStatus === 'completed' && event.TranscriptionText
           ? event.TranscriptionText
           : '(transcription unavailable)';
+
+      // Twilio rejects SMS bodies over 1600 characters, and a two-minute
+      // voicemail can transcribe past that. Truncate with room to spare
+      // for the rest of the message — the full audio is at the link.
+      if (transcription.length > 1200) {
+        transcription = `${transcription.slice(0, 1200)}… (cut off — full message at the link)`;
+      }
 
       // .mp3 makes the link play in the phone's browser. Recording media
       // URLs are public unless HTTP auth on media is enabled on the account.
@@ -227,7 +240,10 @@ exports.handler = async function (context, event, callback) {
       const gather = twiml.gather({
         numDigits: 1,
         timeout: 8,
-        action: step('selection'),
+        // On the retry round, tag the action so 'selection' knows the menu
+        // has already replayed once and stops looping on a bad digit.
+        action:
+          event.retry === '1' ? `${step('selection')}&retry=1` : step('selection'),
         method: 'POST',
       });
       gather.say(

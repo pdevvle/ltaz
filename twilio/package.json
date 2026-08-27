@@ -1,0 +1,7 @@
+{
+  "name": "lees-trees-ivr",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Twilio Functions IVR for 623-400-5499",
+  "dependencies": {}
+}
