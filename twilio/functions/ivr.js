@@ -8,12 +8,14 @@
  * context.PATH at runtime.
  *
  * Steps:
- *   (none)       answer the call: menu in hours, voicemail out of hours
- *   selection    a menu digit was pressed
- *   dial-status  the forwarded call to the cell ended
- *   voicemail    play the greeting and record
- *   done         the caller finished recording
- *   notify       transcription is ready; text it to the cell
+ *   (none)        answer the call: menu in hours, voicemail out of hours
+ *   selection     a menu digit was pressed
+ *   screen        played to the RECIPIENT when the cell picks up
+ *   screen-accept the recipient pressed a key (or didn't)
+ *   dial-status   the forwarded call to the cell ended
+ *   voicemail     play the greeting and record
+ *   done          the caller finished recording; text the alert
+ *   notify        transcription is ready; text it as a follow-up
  */
 
 // ---------------------------------------------------------------- settings
@@ -35,6 +37,14 @@ const DEFAULT_VOICE = 'Polly.Joanna-Generative';
 const TIMEZONE = 'America/Phoenix';
 const OPEN_HOUR = 7; // 7am
 const CLOSE_HOUR = 19; // 7pm
+
+// A bridged call shorter than this is treated as never really connected,
+// so the caller still gets voicemail. Screening (see the `screen` step)
+// means a declined call is answered by the carrier's voicemail, plays the
+// screening prompt to nobody, and hangs up — which Twilio may still report
+// as `completed`. The dial-status log line prints the real numbers from
+// every call; tune this once you have seen a few.
+const MIN_CONNECTED_SECONDS = 20;
 
 const GREETING =
   "Thank you for calling Lee's Tree Service, Irrigation, and Landscaping.";
@@ -83,10 +93,41 @@ function isBusinessHours() {
   return Number(hour) % 24 >= OPEN_HOUR && Number(hour) % 24 < CLOSE_HOUR;
 }
 
+/** "+16025551234" -> "6 0 2, 5 5 5, 1 2 3 4" so TTS reads it as digits. */
+function speakNumber(raw) {
+  const digits = String(raw || '').replace(/\D/g, '').slice(-10);
+  if (digits.length !== 10) return 'an unknown number';
+  const part = (s) => s.split('').join(' ');
+  return `${part(digits.slice(0, 3))}, ${part(digits.slice(3, 6))}, ${part(digits.slice(6))}`;
+}
+
+/**
+ * Send an SMS, logging enough to diagnose a failure from the Logs tab.
+ * Never throws: a texting problem must not take down the call.
+ */
+async function sendSms(context, to, from, body) {
+  try {
+    const client = context.getTwilioClient();
+    const msg = await client.messages.create({ to, from, body });
+    console.log(`SMS ${msg.sid} queued to ${to} from ${from}`);
+    return true;
+  } catch (err) {
+    // err.code is the Twilio error number — 20003 bad credentials, 21606
+    // the from-number cannot send SMS, 21608 unverified on a trial
+    // account, 30034 unregistered A2P 10DLC traffic.
+    console.error(
+      `SMS to ${to} from ${from} FAILED: code=${err.code || 'none'} ` +
+        `status=${err.status || 'none'} ${err.message}`
+    );
+    return false;
+  }
+}
+
 // ----------------------------------------------------------------- handler
 
 exports.handler = async function (context, event, callback) {
   const voice = context.TTS_VOICE || DEFAULT_VOICE;
+  const forwardTo = context.FORWARD_TO || DEFAULT_FORWARD_TO;
   const twiml = new Twilio.twiml.VoiceResponse();
 
   // This Function's own URL, so each step can hand off to the next. If the
@@ -126,33 +167,75 @@ exports.handler = async function (context, event, callback) {
       }
 
       twiml.say({ voice }, 'Connecting you now.');
-      twiml.dial(
-        {
-          // Caller sees the shop's public number on the cell, not their own.
-          callerId: event.To,
-          answerOnBridge: true,
-          // The cell's carrier voicemail picks up at ~14 seconds. Giving up
-          // at 12 keeps unanswered calls here, where they land in our own
-          // voicemail instead of the carrier's.
-          timeout: 12,
-          action: step('dial-status'),
-          method: 'POST',
-        },
-        context.FORWARD_TO || DEFAULT_FORWARD_TO
+      const dial = twiml.dial({
+        // Caller sees the shop's public number on the cell, not their own.
+        callerId: event.To,
+        answerOnBridge: true,
+        // The cell's carrier voicemail picks up at ~14 seconds. Giving up
+        // at 12 keeps unanswered calls here, where they land in our own
+        // voicemail instead of the carrier's.
+        timeout: 12,
+        action: step('dial-status'),
+        method: 'POST',
+      });
+      // `url` plays the screening prompt to whoever picks up, before the
+      // legs are bridged. Carrier voicemail cannot press a key, so a
+      // declined call never bridges and falls through to our voicemail.
+      dial.number(
+        { url: `${step('screen')}&caller=${encodeURIComponent(event.From || '')}`, method: 'POST' },
+        forwardTo
       );
       break;
     }
 
-    // ------------------------------------------------ the forwarded call ended
+    // ------------------------------- played to the recipient, not the caller
+    case 'screen': {
+      const gather = twiml.gather({
+        numDigits: 1,
+        timeout: 10,
+        action: step('screen-accept'),
+        method: 'POST',
+      });
+      gather.say(
+        { voice },
+        `Call from ${speakNumber(event.caller)}. Press any key to accept.`
+      );
+      // Reached only if <Gather> somehow falls through without its action.
+      twiml.hangup();
+      break;
+    }
+
+    // ------------------------------------- the recipient accepted, or didn't
+    case 'screen-accept': {
+      if (!event.Digits) {
+        // No key: drop this leg without bridging. The caller is still on
+        // the line and continues at the dial action below.
+        console.log('screening not accepted (no key pressed)');
+        twiml.hangup();
+        break;
+      }
+      // Any key accepts. Returning empty TwiML ends the screening prompt,
+      // which is what bridges the two legs together.
+      console.log('screening accepted');
+      break;
+    }
+
+    // --------------------------------------------- the forwarded call ended
     case 'dial-status': {
-      if (event.DialCallStatus === 'completed') {
+      const seconds = Number(event.DialCallDuration || 0);
+      console.log(
+        `dial-status: status=${event.DialCallStatus} duration=${seconds}s ` +
+          `from ${event.From || 'unknown'}`
+      );
+
+      // Only a call that actually bridged for a while counts as answered.
+      // Anything else — no answer, busy, declined into carrier voicemail,
+      // screening not accepted — falls through to our own voicemail.
+      if (event.DialCallStatus === 'completed' && seconds >= MIN_CONNECTED_SECONDS) {
         twiml.hangup();
         break;
       }
 
-      console.log(
-        `dial to cell not answered (${event.DialCallStatus}) from ${event.From || 'unknown'}`
-      );
       twiml.redirect({ method: 'POST' }, step('voicemail'));
       break;
     }
@@ -160,14 +243,14 @@ exports.handler = async function (context, event, callback) {
     // ---------------------------------------------------- record a message
     case 'voicemail': {
       twiml.say({ voice }, isBusinessHours() ? VOICEMAIL_OPEN : VOICEMAIL_CLOSED);
-      twiml.say(
-        { voice },
-        'Please begin after the tone, and press pound when you are finished.'
-      );
       twiml.record({
         // Twilio only transcribes recordings up to two minutes; longer
         // messages would arrive with no transcription in the SMS.
         maxLength: 120,
+        // Recording ends on 5 seconds of silence (Twilio's default) or on
+        // hangup, so the caller is never told to press anything. Narrowing
+        // finishOnKey from the default 1234567890*# means a fumbled keypad
+        // cannot cut someone off mid-message.
         finishOnKey: '#',
         playBeep: true,
         transcribe: true,
@@ -180,56 +263,58 @@ exports.handler = async function (context, event, callback) {
       break;
     }
 
-    // ------------------------------------------------ recording finished
+    // ------------------ recording finished: text the alert straight away
     case 'done': {
+      const listen = event.RecordingUrl ? `${event.RecordingUrl}.mp3` : '';
       console.log(
         `voicemail from ${event.From || 'unknown'}: ${event.RecordingUrl || 'no recording'} ` +
           `(${event.RecordingDuration || 0}s)`
       );
+
+      // Sent here rather than waiting on the transcription, so a slow or
+      // failed transcription can never cost you the notification. The
+      // transcription follows as a second text if and when it arrives.
+      await sendSms(
+        context,
+        forwardTo,
+        event.To || '+16234005499',
+        `New voicemail from ${event.From || 'unknown caller'} ` +
+          `(${event.RecordingDuration || 0}s).\nListen: ${listen}`
+      );
+
       twiml.say({ voice }, 'Thank you. Your message has been received. Goodbye.');
       twiml.hangup();
       break;
     }
 
-    // -------------------------------------- transcription ready: text it
+    // ------------------------------- transcription ready: send it as text
     case 'notify': {
-      const notifyTo = context.FORWARD_TO || DEFAULT_FORWARD_TO;
+      console.log(`transcription status: ${event.TranscriptionStatus}`);
 
-      let transcription =
-        event.TranscriptionStatus === 'completed' && event.TranscriptionText
-          ? event.TranscriptionText
-          : '(transcription unavailable)';
+      if (event.TranscriptionStatus !== 'completed' || !event.TranscriptionText) {
+        // No usable text. The alert from `done` already went out, so
+        // there is nothing to chase here.
+        break;
+      }
 
+      let text = event.TranscriptionText;
       // Twilio rejects SMS bodies over 1600 characters, and a two-minute
-      // voicemail can transcribe past that. Truncate with room to spare
-      // for the rest of the message — the full audio is at the link.
-      if (transcription.length > 1200) {
-        transcription = `${transcription.slice(0, 1200)}… (cut off — full message at the link)`;
+      // voicemail can transcribe past that. The full audio is at the link
+      // in the first text.
+      if (text.length > 1200) {
+        text = `${text.slice(0, 1200)}… (cut off — full message at the link)`;
       }
 
-      // .mp3 makes the link play in the phone's browser. Recording media
-      // URLs are public unless HTTP auth on media is enabled on the account.
-      const listen = event.RecordingUrl ? `${event.RecordingUrl}.mp3` : '';
-
-      try {
-        await context.getTwilioClient().messages.create({
-          to: notifyTo,
-          // The Twilio number itself, which must be SMS-capable.
-          from: event.To || '+16234005499',
-          body:
-            `New voicemail from ${event.From || 'unknown caller'}:\n` +
-            `"${transcription}"\n` +
-            `Listen: ${listen}`,
-        });
-        console.log(`voicemail SMS sent to ${notifyTo}`);
-      } catch (err) {
-        // The voicemail itself is already recorded; log and move on.
-        console.error(`voicemail SMS failed: ${err.message}`);
-      }
+      await sendSms(
+        context,
+        forwardTo,
+        event.To || '+16234005499',
+        `Transcript of the voicemail from ${event.From || 'unknown caller'}:\n"${text}"`
+      );
       break;
     }
 
-    // --------------------------------------------------- answer the call
+    // ----------------------------------------------------- answer the call
     default: {
       if (!isBusinessHours()) {
         console.log(`after-hours call from ${event.From || 'unknown'} -> voicemail`);

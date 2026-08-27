@@ -19,7 +19,9 @@ A call to 623-400-5499 hears:
 
 - **1, 2, or 3** → "Connecting you now" → rings the recipient's cell,
   **+1 623-282-0110**. The three options all connect to the same place; they
-  exist so the Function logs show *why* people call.
+  exist so the Function logs show *why* people call. The person answering
+  hears *"Call from 6 0 2, 5 5 5, 1 2 3 4. Press any key to accept"* and
+  must press a key — see **Call screening** below.
 - **4** → voicemail (below).
 - **Nothing pressed** → connected anyway after the 8-second gather timeout
   (logged as `no selection`).
@@ -30,6 +32,26 @@ The dial gives up after **12 seconds** — deliberately, because the cell's
 carrier voicemail picks up at ~14 seconds. Unanswered calls therefore come
 back to Twilio and land in **our** voicemail (with transcription and SMS
 notification) instead of the cell's carrier voicemail.
+
+### Call screening
+
+Declining a call on a cell phone does not return a busy signal on most US
+carriers — it hands the call to the *carrier's* voicemail, which answers.
+Twilio sees an answered call and reports `DialCallStatus: completed`, so
+without screening the caller would end up in the phone's own voicemail:
+no transcription, no SMS, and a message nobody is watching for.
+
+`<Number url="…">` fixes that. When the cell picks up, Twilio plays the
+screening prompt **to the recipient only** while the caller keeps hearing
+ringing (that is what `answerOnBridge` is for). Pressing any key bridges
+the call. Carrier voicemail cannot press a key, so a declined call, a
+powered-off phone, or a full mailbox all fall through to our voicemail.
+
+Because a screened-out call may still be reported as `completed`, the
+dial-status step also requires the bridge to have lasted at least
+`MIN_CONNECTED_SECONDS` (20) before it treats the call as answered. Every
+call logs its real `status=` and `duration=`; check a few and tune the
+constant if 20 is wrong for how this line is actually used.
 
 ## Out of hours
 
@@ -56,23 +78,57 @@ Outside those hours:
 > but if you leave your name, number, and project details, we will give you
 > service as quickly as a staff member is available."
 
-Either way the caller then hears *"Please begin after the tone, and press
-pound when you are finished"* so they know when to speak. Every route into
-voicemail gets the greeting for the current time — pressing 4, an
-unanswered forward, and an out-of-hours call alike.
+The beep follows immediately — the caller is not told to press anything.
+Recording ends on 5 seconds of silence (Twilio's `<Record>` default) or on
+hangup, and `#` still works even though it is not announced. `finishOnKey`
+is narrowed from Twilio's default of `1234567890*#` so a fumbled keypad
+cannot cut someone off mid-message.
 
-The caller can record up to 2 minutes (Twilio's transcription limit) and
-finish with `#`. When the transcription is ready — usually under a minute
-after hangup — the cell gets an SMS from 623-400-5499:
+Every route into voicemail gets the greeting for the current time —
+pressing 4, an unanswered or declined forward, and an out-of-hours call
+alike. The caller can record up to 2 minutes (Twilio's transcription
+limit).
+
+### Notifications
+
+The cell gets **two** texts from 623-400-5499, in this order:
 
 ```
-New voicemail from +1602…:
-"transcribed message text"
+New voicemail from +1602… (18s).
 Listen: https://api.twilio.com/…/Recordings/RE….mp3
 ```
 
+then, once Twilio finishes transcribing (usually under a minute):
+
+```
+Transcript of the voicemail from +1602…:
+"transcribed message text"
+```
+
+The alert is sent the moment recording stops rather than waiting on the
+transcription, so a slow, failed, or silently-missing transcription can
+never cost you the notification entirely. If the transcription is
+unusable, the second text simply does not arrive.
+
 Recordings also remain listed in the Twilio Console under
 **Monitor → Recordings**.
+
+### If a text does not arrive
+
+Open the service's **Logs** tab and look for the `SMS` line the Function
+writes on every attempt:
+
+| What you see | What it means |
+|---|---|
+| `SMS SM… queued to …` | Twilio accepted it. If no text arrived, the carrier dropped it — check **Monitor → Logs → Messaging** for the delivery status and error code. |
+| `SMS … FAILED: code=20003` | The service cannot authenticate. In the service's **Settings → General**, tick **Add my Twilio Credentials (ACCOUNT_SID) and (AUTH_TOKEN) to ENV**. |
+| `SMS … FAILED: code=21606` | 623-400-5499 is not SMS-capable, or is not a number on this account. |
+| `SMS … FAILED: code=21608` | Trial account — the destination must be a verified number. |
+| `SMS … FAILED: code=30034` | **A2P 10DLC registration is missing.** US long codes must be registered before carriers will deliver application-sent SMS. Register the brand and campaign under **Messaging → Regulatory Compliance**. |
+| no `SMS` line at all | The step never ran. Confirm `/ivr` is deployed and the recording actually completed. |
+
+`code=30034` is the most common cause on a newly provisioned US number,
+and it is a carrier-side block: nothing in this code can work around it.
 
 ## How the one Function stays one Function
 
@@ -161,7 +217,10 @@ Call 623-400-5499:
 - Don't answer the cell → after 12 seconds the caller gets the voicemail
   greeting for the current time of day and can leave a message; the
   transcription SMS arrives on the cell shortly after they hang up.
-- Press **4** → straight to voicemail; same SMS afterward.
+- Press **4** → straight to voicemail; the alert text arrives as soon as
+  you hang up, the transcript a minute or so later.
+- Answer the cell but press nothing → the caller lands in voicemail, not
+  the carrier's. Same for declining the call outright.
 - Press **9** → menu replays with the "Sorry, I did not get that" prompt;
   press **9** again → the call connects instead of looping.
 - Press nothing → after ~8 seconds the call connects anyway.
