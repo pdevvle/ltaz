@@ -38,6 +38,18 @@ const TIMEZONE = 'America/Phoenix';
 const OPEN_HOUR = 7; // 7am
 const CLOSE_HOUR = 19; // 7pm
 
+// How the recipient is told about a new voicemail:
+//   'call'  Twilio rings the cell and plays the message. No messaging
+//           registration of any kind — this is a voice call, same as the
+//           rest of the flow. If the cell does not pick up, the message
+//           lands in its carrier voicemail, so it still gets through.
+//   'sms'   Text with a listen link, plus the transcript as a follow-up.
+//           US long codes need A2P 10DLC registration before carriers will
+//           deliver this; without it every text is dropped (code 30034).
+//   'both'  Both of the above.
+// Override with a NOTIFY_BY environment variable.
+const DEFAULT_NOTIFY_BY = 'call';
+
 // A bridged call shorter than this is treated as never really connected,
 // so the caller still gets voicemail. Screening (see the `screen` step)
 // means a declined call is answered by the carrier's voicemail, plays the
@@ -101,6 +113,42 @@ function speakNumber(raw) {
   return `${part(digits.slice(0, 3))}, ${part(digits.slice(3, 6))}, ${part(digits.slice(6))}`;
 }
 
+/** Escape a string for use inside a TwiML attribute or text node. */
+function xml(raw) {
+  return String(raw || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/**
+ * Ring the recipient and play them the voicemail. Uses no messaging
+ * service at all, so it works on an unregistered number. Never throws.
+ */
+async function callWithVoicemail(context, to, from, voice, caller, recordingUrl) {
+  const spoken = speakNumber(caller);
+  const body =
+    `<Response>` +
+      `<Pause length="1"/>` +
+      `<Say voice="${xml(voice)}">New voicemail from ${xml(spoken)}. Here it is.</Say>` +
+      (recordingUrl ? `<Play>${xml(recordingUrl)}</Play>` : '') +
+      `<Say voice="${xml(voice)}">Again, that was from ${xml(spoken)}.</Say>` +
+    `</Response>`;
+
+  try {
+    const call = await context.getTwilioClient().calls.create({ to, from, twiml: body });
+    console.log(`notify call ${call.sid} placed to ${to} from ${from}`);
+    return true;
+  } catch (err) {
+    console.error(
+      `notify call to ${to} from ${from} FAILED: code=${err.code || 'none'} ` +
+        `status=${err.status || 'none'} ${err.message}`
+    );
+    return false;
+  }
+}
+
 /**
  * Send an SMS, logging enough to diagnose a failure from the Logs tab.
  * Never throws: a texting problem must not take down the call.
@@ -128,6 +176,9 @@ async function sendSms(context, to, from, body) {
 exports.handler = async function (context, event, callback) {
   const voice = context.TTS_VOICE || DEFAULT_VOICE;
   const forwardTo = context.FORWARD_TO || DEFAULT_FORWARD_TO;
+  const notifyBy = context.NOTIFY_BY || DEFAULT_NOTIFY_BY;
+  const wantsCall = notifyBy === 'call' || notifyBy === 'both';
+  const wantsSms = notifyBy === 'sms' || notifyBy === 'both';
   const twiml = new Twilio.twiml.VoiceResponse();
 
   // This Function's own URL, so each step can hand off to the next. If the
@@ -253,7 +304,8 @@ exports.handler = async function (context, event, callback) {
         // cannot cut someone off mid-message.
         finishOnKey: '#',
         playBeep: true,
-        transcribe: true,
+        // Only worth paying for when a text can actually carry it.
+        transcribe: wantsSms,
         transcribeCallback: step('notify'),
         action: step('done'),
         method: 'POST',
@@ -271,16 +323,22 @@ exports.handler = async function (context, event, callback) {
           `(${event.RecordingDuration || 0}s)`
       );
 
-      // Sent here rather than waiting on the transcription, so a slow or
-      // failed transcription can never cost you the notification. The
-      // transcription follows as a second text if and when it arrives.
-      await sendSms(
-        context,
-        forwardTo,
-        event.To || '+16234005499',
-        `New voicemail from ${event.From || 'unknown caller'} ` +
-          `(${event.RecordingDuration || 0}s).\nListen: ${listen}`
-      );
+      // Notified here rather than from the transcription callback, so a
+      // slow or failed transcription can never cost the notification.
+      const from = event.To || '+16234005499';
+
+      if (wantsCall) {
+        await callWithVoicemail(context, forwardTo, from, voice, event.From, listen);
+      }
+      if (wantsSms) {
+        await sendSms(
+          context,
+          forwardTo,
+          from,
+          `New voicemail from ${event.From || 'unknown caller'} ` +
+            `(${event.RecordingDuration || 0}s).\nListen: ${listen}`
+        );
+      }
 
       twiml.say({ voice }, 'Thank you. Your message has been received. Goodbye.');
       twiml.hangup();
@@ -291,6 +349,7 @@ exports.handler = async function (context, event, callback) {
     case 'notify': {
       console.log(`transcription status: ${event.TranscriptionStatus}`);
 
+      if (!wantsSms) break; // nothing to carry the text
       if (event.TranscriptionStatus !== 'completed' || !event.TranscriptionText) {
         // No usable text. The alert from `done` already went out, so
         // there is nothing to chase here.

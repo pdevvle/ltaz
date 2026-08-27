@@ -91,44 +91,53 @@ limit).
 
 ### Notifications
 
-The cell gets **two** texts from 623-400-5499, in this order:
+When a voicemail is recorded, **Twilio calls the cell and plays it**:
 
-```
-New voicemail from +1602… (18s).
-Listen: https://api.twilio.com/…/Recordings/RE….mp3
-```
+> *"New voicemail from 6 0 2, 5 5 5, 1 2 3 4. Here it is."* → the recording
+> → *"Again, that was from 6 0 2, 5 5 5, 1 2 3 4."*
 
-then, once Twilio finishes transcribing (usually under a minute):
+This is deliberately a phone call and not a text. US long codes cannot send
+application SMS until the number is registered for **A2P 10DLC**, which for
+a sole proprietor means a brand registration with identity verification —
+a lot of process for texting yourself. A voice call needs none of it, uses
+the number you already have, and if the cell does not pick up the message
+lands in its carrier voicemail, so it still gets through.
 
-```
-Transcript of the voicemail from +1602…:
-"transcribed message text"
-```
+The notification is placed the moment recording stops, so nothing depends
+on transcription succeeding.
 
-The alert is sent the moment recording stops rather than waiting on the
-transcription, so a slow, failed, or silently-missing transcription can
-never cost you the notification entirely. If the transcription is
-unusable, the second text simply does not arrive.
+Set a **`NOTIFY_BY`** environment variable to change this:
+
+| Value | Behavior |
+|---|---|
+| `call` *(default)* | Ring the cell and play the message. No registration needed. |
+| `sms` | Text a listen link, then the transcript as a follow-up. Requires A2P 10DLC. |
+| `both` | Both. |
+
+Transcription is only switched on when a text can actually carry it, so
+`call` mode does not pay for transcriptions nobody will read.
 
 Recordings also remain listed in the Twilio Console under
 **Monitor → Recordings**.
 
-### If a text does not arrive
+### If a notification does not arrive
 
 Open the service's **Logs** tab and look for the `SMS` line the Function
 writes on every attempt:
 
 | What you see | What it means |
 |---|---|
+| `notify call CA… placed to …` | The call went out. Check **Monitor → Logs → Calls** if the phone never rang. |
 | `SMS SM… queued to …` | Twilio accepted it. If no text arrived, the carrier dropped it — check **Monitor → Logs → Messaging** for the delivery status and error code. |
 | `SMS … FAILED: code=20003` | The service cannot authenticate. In the service's **Settings → General**, tick **Add my Twilio Credentials (ACCOUNT_SID) and (AUTH_TOKEN) to ENV**. |
 | `SMS … FAILED: code=21606` | 623-400-5499 is not SMS-capable, or is not a number on this account. |
 | `SMS … FAILED: code=21608` | Trial account — the destination must be a verified number. |
 | `SMS … FAILED: code=30034` | **A2P 10DLC registration is missing.** US long codes must be registered before carriers will deliver application-sent SMS. Register the brand and campaign under **Messaging → Regulatory Compliance**. |
-| no `SMS` line at all | The step never ran. Confirm `/ivr` is deployed and the recording actually completed. |
+| no `notify` or `SMS` line at all | The step never ran. Confirm `/ivr` is deployed and the recording actually completed. |
 
-`code=30034` is the most common cause on a newly provisioned US number,
-and it is a carrier-side block: nothing in this code can work around it.
+`code=20003` and `code=30034` are the two usual suspects. 20003 is a
+one-checkbox fix. 30034 is a carrier-side block on unregistered SMS that no
+code can work around — which is exactly why the default is `call`.
 
 ## How the one Function stays one Function
 
@@ -217,8 +226,8 @@ Call 623-400-5499:
 - Don't answer the cell → after 12 seconds the caller gets the voicemail
   greeting for the current time of day and can leave a message; the
   transcription SMS arrives on the cell shortly after they hang up.
-- Press **4** → straight to voicemail; the alert text arrives as soon as
-  you hang up, the transcript a minute or so later.
+- Press **4** → straight to voicemail; the cell rings back with the
+  message a few seconds after you hang up.
 - Answer the cell but press nothing → the caller lands in voicemail, not
   the carrier's. Same for declining the call outright.
 - Press **9** → menu replays with the "Sorry, I did not get that" prompt;
