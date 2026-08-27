@@ -44,10 +44,20 @@ const CLOSE_HOUR = 19; // 7pm
 //   WP_SECRET   = the same string as LTAZ_VM_SECRET in wp-config.php
 // Nothing is sent anywhere if WP_ENDPOINT is unset.
 //
-// This deliberately avoids SMS: US long codes cannot send application text
-// messages until the number is registered for A2P 10DLC, and an
-// unregistered one has every message dropped by the carriers.
 const WP_TIMEOUT_MS = 10000;
+
+// Texting is optional and off unless configured, because 623-400-5499 is
+// not registered for A2P 10DLC and carriers drop unregistered application
+// SMS outright (error 30034). Set ONE of these to turn it on:
+//   MESSAGING_SERVICE_SID = MG…  a Messaging Service, the A2P-correct route
+//   SMS_FROM              = +16234002911  any SMS-capable number on the
+//                           account — it does not have to be the number
+//                           that took the call
+// The service SID wins if both are set. SMS_TO defaults to FORWARD_TO.
+//
+// Being SMS-capable is not the same as being A2P-registered: every long
+// code is capable, but only a number attached to an approved campaign
+// actually delivers. If texts do not arrive, check the logged error code.
 
 // A bridged call shorter than this is treated as never really connected,
 // so the caller still gets voicemail. Screening (see the `screen` step)
@@ -110,6 +120,40 @@ function speakNumber(raw) {
   if (digits.length !== 10) return 'an unknown number';
   const part = (s) => s.split('').join(' ');
   return `${part(digits.slice(0, 3))}, ${part(digits.slice(3, 6))}, ${part(digits.slice(6))}`;
+}
+
+/**
+ * Text the recipient, if texting is configured. Never throws: a messaging
+ * problem must not take down the call, and the website record is the
+ * system of record either way.
+ */
+async function sendSms(context, body) {
+  const service = context.MESSAGING_SERVICE_SID;
+  const from = context.SMS_FROM;
+
+  if (!service && !from) {
+    return false; // texting deliberately not configured
+  }
+
+  const to = context.SMS_TO || context.FORWARD_TO || DEFAULT_FORWARD_TO;
+  const message = service
+    ? { to, body, messagingServiceSid: service }
+    : { to, body, from };
+
+  try {
+    const sent = await context.getTwilioClient().messages.create(message);
+    console.log(`SMS ${sent.sid} queued to ${to} via ${service || from}`);
+    return true;
+  } catch (err) {
+    // 21606 the sender cannot send SMS, 21608 unverified on a trial
+    // account, 20003 the service has no Twilio credentials, 30034 the
+    // sender is not registered for A2P 10DLC.
+    console.error(
+      `SMS to ${to} via ${service || from} FAILED: code=${err.code || 'none'} ` +
+        `status=${err.status || 'none'} ${err.message}`
+    );
+    return false;
+  }
 }
 
 /**
@@ -361,6 +405,13 @@ exports.handler = async function (context, event, callback) {
         transcript: '',
       });
 
+      // Immediate heads-up. The transcript follows once Twilio has it.
+      await sendSms(
+        context,
+        `New voicemail from ${event.From || 'unknown caller'} ` +
+          `(${event.RecordingDuration || 0}s).\nListen: ${listen}`
+      );
+
       twiml.say({ voice }, 'Thank you. Your message has been received. Goodbye.');
       twiml.hangup();
       break;
@@ -384,6 +435,18 @@ exports.handler = async function (context, event, callback) {
         recording_url: event.RecordingUrl ? `${event.RecordingUrl}.mp3` : '',
         transcript: event.TranscriptionText,
       });
+
+      let text = event.TranscriptionText;
+      // Twilio rejects SMS bodies over 1600 characters, and a two-minute
+      // voicemail can transcribe past that. The full audio is on the site.
+      if (text.length > 1200) {
+        text = `${text.slice(0, 1200)}… (cut off — full message on the site)`;
+      }
+
+      await sendSms(
+        context,
+        `Voicemail from ${event.From || 'unknown caller'}:\n"${text}"`
+      );
       break;
     }
 

@@ -121,6 +121,31 @@ Function refuses a plain-http URL rather than sending it in the clear. If
 either variable is unset, the Function logs loudly and the voicemail is
 recorded in Twilio but logged nowhere else.
 
+### Optional: text it as well
+
+A text can go out alongside the website record — an alert when recording
+stops, the transcript when it is ready. Off unless configured. Set **one**
+of these on the service:
+
+| Variable | Value |
+|---|---|
+| `MESSAGING_SERVICE_SID` | `MG…` — a Messaging Service. The A2P-correct route, and it wins if both are set. |
+| `SMS_FROM` | e.g. `+16234002911` — any SMS-capable number on the account. It does **not** have to be the number that took the call. |
+
+`SMS_TO` overrides the destination; it defaults to `FORWARD_TO`.
+
+Being SMS-*capable* is not the same as being **A2P 10DLC registered**.
+Every US long code is capable — that is just the number's carrier
+capability — but only a number attached to an approved campaign actually
+delivers. An unregistered sender fails with `code=30034`, which is a
+carrier-side block no code can work around. If one number on the account is
+registered and another is not, the registration follows the campaign, so
+either send from the registered number or add the other number to the same
+Messaging Service.
+
+Texting failures are logged and otherwise ignored: the website record is
+the system of record, and a messaging problem never affects a call.
+
 Recordings also remain listed in the Twilio Console under
 **Monitor → Recordings**.
 
