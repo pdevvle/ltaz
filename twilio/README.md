@@ -30,8 +30,8 @@ A call to 623-400-5499 hears:
 
 The dial gives up after **12 seconds** — deliberately, because the cell's
 carrier voicemail picks up at ~14 seconds. Unanswered calls therefore come
-back to Twilio and land in **our** voicemail (with transcription and SMS
-notification) instead of the cell's carrier voicemail.
+back to Twilio and land in **our** voicemail — transcribed and logged to
+the website — instead of the cell's carrier voicemail.
 
 ### Call screening
 
@@ -39,7 +39,7 @@ Declining a call on a cell phone does not return a busy signal on most US
 carriers — it hands the call to the *carrier's* voicemail, which answers.
 Twilio sees an answered call and reports `DialCallStatus: completed`, so
 without screening the caller would end up in the phone's own voicemail:
-no transcription, no SMS, and a message nobody is watching for.
+no transcript, nothing logged, and a message nobody is watching for.
 
 `<Number url="…">` fixes that. When the cell picks up, Twilio plays the
 screening prompt **to the recipient only** while the caller keeps hearing
@@ -57,8 +57,8 @@ constant if 20 is wrong for how this line is actually used.
 
 Before 7am or after 7pm there is **no menu and no attempt to ring anyone**.
 The call goes straight to voicemail, which opens with the alternate
-greeting naming the hours. The caller records a message and it arrives by
-SMS exactly as an in-hours voicemail does.
+greeting naming the hours. The caller records a message and it reaches the
+website exactly as an in-hours voicemail does.
 
 Note this means an after-hours emergency — storm damage, a fallen tree —
 reaches voicemail rather than a person. If you want a way through, the
@@ -89,55 +89,55 @@ pressing 4, an unanswered or declined forward, and an out-of-hours call
 alike. The caller can record up to 2 minutes (Twilio's transcription
 limit).
 
-### Notifications
+### Where voicemails go
 
-When a voicemail is recorded, **Twilio calls the cell and plays it**:
+Each voicemail is POSTed to **leestreesaz.com**, which stores it, shows it
+on a PIN-protected page, and emails it out. See `ltaz-voicemail/` in this
+repo for the WordPress side.
 
-> *"New voicemail from 6 0 2, 5 5 5, 1 2 3 4. Here it is."* → the recording
-> → *"Again, that was from 6 0 2, 5 5 5, 1 2 3 4."*
+This deliberately avoids SMS. US long codes cannot send application text
+messages until the number is registered for **A2P 10DLC** — for a sole
+proprietor that means a brand registration with identity verification, and
+an unregistered number simply has every message dropped by the carriers.
+Posting to a site you already run needs none of that.
 
-This is deliberately a phone call and not a text. US long codes cannot send
-application SMS until the number is registered for **A2P 10DLC**, which for
-a sole proprietor means a brand registration with identity verification —
-a lot of process for texting yourself. A voice call needs none of it, uses
-the number you already have, and if the cell does not pick up the message
-lands in its carrier voicemail, so it still gets through.
+Twilio posts twice per message, both carrying the same `CallSid` so the
+site keeps one record:
 
-The notification is placed the moment recording stops, so nothing depends
-on transcription succeeding.
+1. **When recording stops** — caller, duration, recording link. Sent here
+   rather than from the transcription callback so a slow or failed
+   transcription cannot cost the record entirely.
+2. **When transcription finishes** — the text, added to the same entry.
 
-Set a **`NOTIFY_BY`** environment variable to change this:
+Two environment variables on the service turn this on:
 
-| Value | Behavior |
+| Variable | Value |
 |---|---|
-| `call` *(default)* | Ring the cell and play the message. No registration needed. |
-| `sms` | Text a listen link, then the transcript as a follow-up. Requires A2P 10DLC. |
-| `both` | Both. |
+| `WP_ENDPOINT` | `https://leestreesaz.com/wp-json/ltaz/v1/voicemail` |
+| `WP_SECRET` | the same string as `LTAZ_VM_SECRET` in `wp-config.php` |
 
-Transcription is only switched on when a text can actually carry it, so
-`call` mode does not pay for transcriptions nobody will read.
+The endpoint must be `https` — the secret travels in a header, so the
+Function refuses a plain-http URL rather than sending it in the clear. If
+either variable is unset, the Function logs loudly and the voicemail is
+recorded in Twilio but logged nowhere else.
 
 Recordings also remain listed in the Twilio Console under
 **Monitor → Recordings**.
 
-### If a notification does not arrive
+### If a voicemail does not show up on the site
 
-Open the service's **Logs** tab and look for the `SMS` line the Function
-writes on every attempt:
+Open the service's **Logs** tab. The Function writes one line on every
+attempt:
 
 | What you see | What it means |
 |---|---|
-| `notify call CA… placed to …` | The call went out. Check **Monitor → Logs → Calls** if the phone never rang. |
-| `SMS SM… queued to …` | Twilio accepted it. If no text arrived, the carrier dropped it — check **Monitor → Logs → Messaging** for the delivery status and error code. |
-| `SMS … FAILED: code=20003` | The service cannot authenticate. In the service's **Settings → General**, tick **Add my Twilio Credentials (ACCOUNT_SID) and (AUTH_TOKEN) to ENV**. |
-| `SMS … FAILED: code=21606` | 623-400-5499 is not SMS-capable, or is not a number on this account. |
-| `SMS … FAILED: code=21608` | Trial account — the destination must be a verified number. |
-| `SMS … FAILED: code=30034` | **A2P 10DLC registration is missing.** US long codes must be registered before carriers will deliver application-sent SMS. Register the brand and campaign under **Messaging → Regulatory Compliance**. |
-| no `notify` or `SMS` line at all | The step never ran. Confirm `/ivr` is deployed and the recording actually completed. |
-
-`code=20003` and `code=30034` are the two usual suspects. 20003 is a
-one-checkbox fix. 30034 is a carrier-side block on unregistered SMS that no
-code can work around — which is exactly why the default is `call`.
+| `voicemail logged to site (200)` | It worked. Check the page and your email. |
+| `site rejected the voicemail: 403` | `WP_SECRET` and `LTAZ_VM_SECRET` do not match. |
+| `site rejected the voicemail: 503` | `LTAZ_VM_SECRET` is missing from `wp-config.php`. |
+| `site rejected the voicemail: 404` | The LTAZ Voicemail Inbox plugin is not active. |
+| `could not reach the site: …` | DNS, TLS, or a firewall between Twilio and the site. |
+| `WP_ENDPOINT / WP_SECRET are not set` | Add both under Environment Variables and Deploy All. |
+| no line at all | The step never ran. Confirm `/ivr` is deployed and the recording completed. |
 
 ## How the one Function stays one Function
 
@@ -166,7 +166,7 @@ Everything tunable is a constant at the top of `functions/ivr.js`
 `VOICEMAIL_CLOSED`), plus two optional environment variables:
 
 - **`FORWARD_TO`** (E.164, e.g. `+16025551234`) — overrides both the dial
-  destination and the SMS notification destination. Defaults to
+  destination and the screening prompt's destination. Defaults to
   `+16232820110`. Set it in the service's Environment Variables to re-route
   calls without a code change.
 - **`TTS_VOICE`** — the synthesized voice for every prompt. Defaults to
@@ -184,11 +184,10 @@ Other behavior worth knowing:
   number, so business calls are recognizable on the cell.
 - **`answerOnBridge`.** The caller hears ringing until the cell actually
   answers, instead of Twilio answering immediately and playing silence.
-- **SMS.** The notification sends from the Twilio number itself, which must
-  be SMS-capable (US numbers may also need an A2P 10DLC registration for
-  reliable delivery). If the SMS fails the voicemail is still recorded and
-  visible in the Console; the failure is logged.
-- **Recording links.** The `.mp3` link in the SMS plays in the phone's
+- **Failures are never fatal.** If the website is unreachable or rejects
+  the request, the voicemail is still recorded and visible in the Console,
+  and the reason is logged. A site problem cannot break a call.
+- **Recording links.** The `.mp3` link stored on the site plays in any
   browser. It is unauthenticated unless "HTTP auth on media URLs" is
   enabled in the account's Voice settings — leave that off, or the link
   will prompt for credentials.
@@ -224,10 +223,10 @@ Call 623-400-5499:
 - Press **1** → "Connecting you now" → 623-282-0110 rings showing
   623-400-5499 as the caller.
 - Don't answer the cell → after 12 seconds the caller gets the voicemail
-  greeting for the current time of day and can leave a message; the
-  transcription SMS arrives on the cell shortly after they hang up.
-- Press **4** → straight to voicemail; the cell rings back with the
-  message a few seconds after you hang up.
+  greeting for the current time of day and can leave a message; it appears
+  on the log page and in your inbox shortly after they hang up.
+- Press **4** → straight to voicemail; the entry appears on the log page
+  within seconds, with the transcript following a minute or so later.
 - Answer the cell but press nothing → the caller lands in voicemail, not
   the carrier's. Same for declining the call outright.
 - Press **9** → menu replays with the "Sorry, I did not get that" prompt;
@@ -240,4 +239,4 @@ Call 623-400-5499:
 
 Every step is logged in the service's **Logs** tab —
 `menu selection: 1 (new project) from +1602…`, `after-hours call from … ->
-voicemail`, `voicemail SMS sent to …`.
+voicemail`, `screening accepted`, `voicemail logged to site (200)`.

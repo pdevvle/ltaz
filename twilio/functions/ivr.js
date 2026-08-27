@@ -14,8 +14,8 @@
  *   screen-accept the recipient pressed a key (or didn't)
  *   dial-status   the forwarded call to the cell ended
  *   voicemail     play the greeting and record
- *   done          the caller finished recording; text the alert
- *   notify        transcription is ready; text it as a follow-up
+ *   done          the caller finished recording; log it to the website
+ *   notify        transcription is ready; add it to the same record
  */
 
 // ---------------------------------------------------------------- settings
@@ -38,17 +38,16 @@ const TIMEZONE = 'America/Phoenix';
 const OPEN_HOUR = 7; // 7am
 const CLOSE_HOUR = 19; // 7pm
 
-// How the recipient is told about a new voicemail:
-//   'call'  Twilio rings the cell and plays the message. No messaging
-//           registration of any kind — this is a voice call, same as the
-//           rest of the flow. If the cell does not pick up, the message
-//           lands in its carrier voicemail, so it still gets through.
-//   'sms'   Text with a listen link, plus the transcript as a follow-up.
-//           US long codes need A2P 10DLC registration before carriers will
-//           deliver this; without it every text is dropped (code 30034).
-//   'both'  Both of the above.
-// Override with a NOTIFY_BY environment variable.
-const DEFAULT_NOTIFY_BY = 'call';
+// Voicemails are logged to the website, which stores the transcript and
+// sends the email. Set these as environment variables on the service:
+//   WP_ENDPOINT = https://leestreesaz.com/wp-json/ltaz/v1/voicemail
+//   WP_SECRET   = the same string as LTAZ_VM_SECRET in wp-config.php
+// Nothing is sent anywhere if WP_ENDPOINT is unset.
+//
+// This deliberately avoids SMS: US long codes cannot send application text
+// messages until the number is registered for A2P 10DLC, and an
+// unregistered one has every message dropped by the carriers.
+const WP_TIMEOUT_MS = 10000;
 
 // A bridged call shorter than this is treated as never really connected,
 // so the caller still gets voicemail. Screening (see the `screen` step)
@@ -113,60 +112,88 @@ function speakNumber(raw) {
   return `${part(digits.slice(0, 3))}, ${part(digits.slice(3, 6))}, ${part(digits.slice(6))}`;
 }
 
-/** Escape a string for use inside a TwiML attribute or text node. */
-function xml(raw) {
-  return String(raw || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+/**
+ * POST JSON over HTTPS using Node's own https module, so this works on any
+ * Twilio runtime without adding a dependency to the service.
+ */
+function postJson(endpoint, headers, payload) {
+  return new Promise((resolve, reject) => {
+    let url;
+    try {
+      url = new URL(endpoint);
+    } catch (err) {
+      reject(new Error(`WP_ENDPOINT is not a valid URL: ${endpoint}`));
+      return;
+    }
+
+    if (url.protocol !== 'https:') {
+      reject(new Error('WP_ENDPOINT must be https'));
+      return;
+    }
+
+    const body = JSON.stringify(payload);
+    const req = require('https').request(
+      {
+        hostname: url.hostname,
+        port: url.port || 443,
+        path: `${url.pathname}${url.search}`,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(body),
+          ...headers,
+        },
+        timeout: WP_TIMEOUT_MS,
+      },
+      (res) => {
+        let data = '';
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
+        res.on('end', () => resolve({ status: res.statusCode, body: data }));
+      }
+    );
+
+    req.on('timeout', () => req.destroy(new Error('timed out')));
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
 }
 
 /**
- * Ring the recipient and play them the voicemail. Uses no messaging
- * service at all, so it works on an unregistered number. Never throws.
+ * Send one voicemail to the website. Called twice per message — once when
+ * recording stops and again when the transcript is ready — and both carry
+ * the same call_sid so the site updates a single record.
+ *
+ * Never throws: a website problem must not take down the call.
  */
-async function callWithVoicemail(context, to, from, voice, caller, recordingUrl) {
-  const spoken = speakNumber(caller);
-  const body =
-    `<Response>` +
-      `<Pause length="1"/>` +
-      `<Say voice="${xml(voice)}">New voicemail from ${xml(spoken)}. Here it is.</Say>` +
-      (recordingUrl ? `<Play>${xml(recordingUrl)}</Play>` : '') +
-      `<Say voice="${xml(voice)}">Again, that was from ${xml(spoken)}.</Say>` +
-    `</Response>`;
+async function logToSite(context, fields) {
+  const endpoint = context.WP_ENDPOINT;
+  const secret = context.WP_SECRET;
 
-  try {
-    const call = await context.getTwilioClient().calls.create({ to, from, twiml: body });
-    console.log(`notify call ${call.sid} placed to ${to} from ${from}`);
-    return true;
-  } catch (err) {
+  if (!endpoint || !secret) {
     console.error(
-      `notify call to ${to} from ${from} FAILED: code=${err.code || 'none'} ` +
-        `status=${err.status || 'none'} ${err.message}`
+      'WP_ENDPOINT / WP_SECRET are not set, so this voicemail was not logged ' +
+        'anywhere. Set them in the service Environment Variables.'
     );
     return false;
   }
-}
 
-/**
- * Send an SMS, logging enough to diagnose a failure from the Logs tab.
- * Never throws: a texting problem must not take down the call.
- */
-async function sendSms(context, to, from, body) {
   try {
-    const client = context.getTwilioClient();
-    const msg = await client.messages.create({ to, from, body });
-    console.log(`SMS ${msg.sid} queued to ${to} from ${from}`);
-    return true;
+    const res = await postJson(endpoint, { 'X-LTAZ-Secret': secret }, fields);
+
+    if (res.status >= 200 && res.status < 300) {
+      console.log(`voicemail logged to site (${res.status}) ${res.body}`);
+      return true;
+    }
+
+    // 403 wrong secret, 503 LTAZ_VM_SECRET missing from wp-config.php,
+    // 404 the plugin is not active.
+    console.error(`site rejected the voicemail: ${res.status} ${res.body}`);
+    return false;
   } catch (err) {
-    // err.code is the Twilio error number — 20003 bad credentials, 21606
-    // the from-number cannot send SMS, 21608 unverified on a trial
-    // account, 30034 unregistered A2P 10DLC traffic.
-    console.error(
-      `SMS to ${to} from ${from} FAILED: code=${err.code || 'none'} ` +
-        `status=${err.status || 'none'} ${err.message}`
-    );
+    console.error(`could not reach the site: ${err.message}`);
     return false;
   }
 }
@@ -176,9 +203,6 @@ async function sendSms(context, to, from, body) {
 exports.handler = async function (context, event, callback) {
   const voice = context.TTS_VOICE || DEFAULT_VOICE;
   const forwardTo = context.FORWARD_TO || DEFAULT_FORWARD_TO;
-  const notifyBy = context.NOTIFY_BY || DEFAULT_NOTIFY_BY;
-  const wantsCall = notifyBy === 'call' || notifyBy === 'both';
-  const wantsSms = notifyBy === 'sms' || notifyBy === 'both';
   const twiml = new Twilio.twiml.VoiceResponse();
 
   // This Function's own URL, so each step can hand off to the next. If the
@@ -233,7 +257,10 @@ exports.handler = async function (context, event, callback) {
       // legs are bridged. Carrier voicemail cannot press a key, so a
       // declined call never bridges and falls through to our voicemail.
       dial.number(
-        { url: `${step('screen')}&caller=${encodeURIComponent(event.From || '')}`, method: 'POST' },
+        {
+          url: `${step('screen')}&caller=${encodeURIComponent(event.From || '')}`,
+          method: 'POST',
+        },
         forwardTo
       );
       break;
@@ -295,8 +322,8 @@ exports.handler = async function (context, event, callback) {
     case 'voicemail': {
       twiml.say({ voice }, isBusinessHours() ? VOICEMAIL_OPEN : VOICEMAIL_CLOSED);
       twiml.record({
-        // Twilio only transcribes recordings up to two minutes; longer
-        // messages would arrive with no transcription in the SMS.
+        // Twilio only transcribes recordings up to two minutes; a longer
+        // message would reach the site with no transcript.
         maxLength: 120,
         // Recording ends on 5 seconds of silence (Twilio's default) or on
         // hangup, so the caller is never told to press anything. Narrowing
@@ -304,8 +331,7 @@ exports.handler = async function (context, event, callback) {
         // cannot cut someone off mid-message.
         finishOnKey: '#',
         playBeep: true,
-        // Only worth paying for when a text can actually carry it.
-        transcribe: wantsSms,
+        transcribe: true,
         transcribeCallback: step('notify'),
         action: step('done'),
         method: 'POST',
@@ -315,7 +341,7 @@ exports.handler = async function (context, event, callback) {
       break;
     }
 
-    // ------------------ recording finished: text the alert straight away
+    // ----------------- recording finished: log it to the site straight away
     case 'done': {
       const listen = event.RecordingUrl ? `${event.RecordingUrl}.mp3` : '';
       console.log(
@@ -323,53 +349,41 @@ exports.handler = async function (context, event, callback) {
           `(${event.RecordingDuration || 0}s)`
       );
 
-      // Notified here rather than from the transcription callback, so a
-      // slow or failed transcription can never cost the notification.
-      const from = event.To || '+16234005499';
-
-      if (wantsCall) {
-        await callWithVoicemail(context, forwardTo, from, voice, event.From, listen);
-      }
-      if (wantsSms) {
-        await sendSms(
-          context,
-          forwardTo,
-          from,
-          `New voicemail from ${event.From || 'unknown caller'} ` +
-            `(${event.RecordingDuration || 0}s).\nListen: ${listen}`
-        );
-      }
+      // Logged here rather than from the transcription callback, so a slow
+      // or failed transcription can never cost the record entirely. The
+      // transcript is added to this same entry when it arrives.
+      await logToSite(context, {
+        call_sid: event.CallSid || '',
+        from: event.From || '',
+        to: event.To || '',
+        duration: Number(event.RecordingDuration || 0),
+        recording_url: listen,
+        transcript: '',
+      });
 
       twiml.say({ voice }, 'Thank you. Your message has been received. Goodbye.');
       twiml.hangup();
       break;
     }
 
-    // ------------------------------- transcription ready: send it as text
+    // -------------------- transcription ready: attach it to the same record
     case 'notify': {
       console.log(`transcription status: ${event.TranscriptionStatus}`);
 
-      if (!wantsSms) break; // nothing to carry the text
       if (event.TranscriptionStatus !== 'completed' || !event.TranscriptionText) {
-        // No usable text. The alert from `done` already went out, so
-        // there is nothing to chase here.
+        // Nothing usable. The entry from `done` already exists with its
+        // recording, so there is nothing to chase here.
         break;
       }
 
-      let text = event.TranscriptionText;
-      // Twilio rejects SMS bodies over 1600 characters, and a two-minute
-      // voicemail can transcribe past that. The full audio is at the link
-      // in the first text.
-      if (text.length > 1200) {
-        text = `${text.slice(0, 1200)}… (cut off — full message at the link)`;
-      }
-
-      await sendSms(
-        context,
-        forwardTo,
-        event.To || '+16234005499',
-        `Transcript of the voicemail from ${event.From || 'unknown caller'}:\n"${text}"`
-      );
+      await logToSite(context, {
+        call_sid: event.CallSid || '',
+        from: event.From || '',
+        to: event.To || '',
+        duration: 0,
+        recording_url: event.RecordingUrl ? `${event.RecordingUrl}.mp3` : '',
+        transcript: event.TranscriptionText,
+      });
       break;
     }
 
