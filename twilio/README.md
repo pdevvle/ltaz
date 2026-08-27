@@ -73,6 +73,17 @@ Recordings also remain listed in the Twilio Console under
   both the dial destination and the SMS notification destination. Defaults
   to `+16232820110`. Set it in the service's Environment Variables to
   re-route calls without a code change.
+- **`TTS_VOICE`** (optional env var) — the synthesized voice for every
+  prompt. Defaults to **`Polly.Joanna-Generative`**, Amazon Polly's
+  generative engine, which is the most natural of the three tiers Twilio
+  offers (basic → neural → generative) and the one that reads the longer
+  voicemail greetings without sounding clipped. Generative voices are billed
+  at a higher per-character rate than neural and are still Public Beta at
+  Twilio, so if you'd rather not use them set this to
+  `Polly.Joanna-Neural` — same voice, cheaper engine, no code change.
+  `Polly.Matthew-Generative` and `Polly.Ruth-Generative` are the other
+  natural-sounding en-US options; `Google.en-US-Chirp3-HD-*` is Google's
+  equivalent tier.
 - **Caller ID.** The forwarded leg presents 623-400-5499, not the caller's
   number, so business calls are recognizable on the cell.
 - **`answerOnBridge`.** The caller hears ringing until the cell actually
@@ -94,7 +105,8 @@ Recordings also remain listed in the Twilio Console under
    `functions/`: `/incoming-call`, `/handle-selection`, `/dial-status`,
    `/voicemail`, `/voicemail-done`, `/voicemail-notify`. Set all of them to
    **Public** visibility (Twilio's webhooks call them directly).
-3. (Optional) Under **Environment Variables** add `FORWARD_TO`.
+3. (Optional) Under **Environment Variables** add `FORWARD_TO` and/or
+   `TTS_VOICE`.
 4. **Deploy All**.
 5. Go to **Phone Numbers → Manage → Active Numbers → (623) 400-5499**, and
    under **Voice Configuration** set *A call comes in* to **Function**, pick

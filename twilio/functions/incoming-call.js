@@ -7,7 +7,15 @@
  * the menu naturally repeats. `retry=1` in that redirect switches the
  * greeting to the shorter re-prompt below.
  */
+// Amazon Polly's generative engine — the most natural of the tiers Twilio
+// offers (basic < neural < generative). Set a TTS_VOICE environment
+// variable on the service to override, e.g. 'Polly.Joanna-Neural' to drop
+// to the cheaper neural tier or 'Polly.Matthew-Generative' for a man's
+// voice. Generative voices bill at a higher per-character rate than neural.
+const DEFAULT_VOICE = 'Polly.Joanna-Generative';
+
 exports.handler = function (context, event, callback) {
+  const voice = context.TTS_VOICE || DEFAULT_VOICE;
   const twiml = new Twilio.twiml.VoiceResponse();
 
   const gather = twiml.gather({
@@ -24,10 +32,10 @@ exports.handler = function (context, event, callback) {
     'Press 4 to leave a voicemail.';
 
   if (event.retry === '1') {
-    gather.say({ voice: 'Polly.Joanna' }, `Sorry, I did not get that. ${menu}`);
+    gather.say({ voice }, `Sorry, I did not get that. ${menu}`);
   } else {
     gather.say(
-      { voice: 'Polly.Joanna' },
+      { voice },
       `Thank you for calling Lee's Tree Service, Irrigation, and Landscaping. ${menu}`
     );
   }

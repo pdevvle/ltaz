@@ -16,7 +16,15 @@
  *      (sent here by the redirect in incoming-call.js)
  * Anything else is invalid and replays the menu once.
  */
+// Amazon Polly's generative engine — the most natural of the tiers Twilio
+// offers (basic < neural < generative). Set a TTS_VOICE environment
+// variable on the service to override, e.g. 'Polly.Joanna-Neural' to drop
+// to the cheaper neural tier or 'Polly.Matthew-Generative' for a man's
+// voice. Generative voices bill at a higher per-character rate than neural.
+const DEFAULT_VOICE = 'Polly.Joanna-Generative';
+
 exports.handler = function (context, event, callback) {
+  const voice = context.TTS_VOICE || DEFAULT_VOICE;
   const twiml = new Twilio.twiml.VoiceResponse();
   const digit = event.Digits || '';
   const forwardTo = context.FORWARD_TO || '+16232820110';
@@ -45,7 +53,7 @@ exports.handler = function (context, event, callback) {
     return callback(null, twiml);
   }
 
-  twiml.say({ voice: 'Polly.Joanna' }, 'Connecting you now.');
+  twiml.say({ voice }, 'Connecting you now.');
   twiml.dial(
     {
       // Caller sees the shop's public number, not their own caller ID,
