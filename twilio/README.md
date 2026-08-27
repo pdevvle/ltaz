@@ -8,7 +8,7 @@ directory holds the Twilio Functions that answer it:
 | `functions/incoming-call.js` | Answers and reads the menu |
 | `functions/handle-selection.js` | Logs the pressed digit; dials the cell (1–3) or hands off to voicemail (4) |
 | `functions/dial-status.js` | After the dial: hangs up if answered, otherwise routes to voicemail |
-| `functions/voicemail.js` | Voicemail prompt + recording, with transcription |
+| `functions/voicemail.js` | Voicemail prompt (time-of-day aware) + recording, with transcription |
 | `functions/voicemail-done.js` | Logs the recording, thanks the caller, hangs up |
 | `functions/voicemail-notify.js` | Texts the transcription + listen link to the cell |
 
@@ -17,8 +17,8 @@ directory holds the Twilio Functions that answer it:
 A call to 623-400-5499 hears:
 
 > "Thank you for calling Lee's Tree Service, Irrigation, and Landscaping.
-> Press 1 for a free quote. Press 2 about an existing job. Press 3 for
-> anything else. Press 4 to leave a voicemail."
+> Press 1 if you're calling regarding a new project. Press 2 about an
+> existing job. Press 3 for anything else. Press 4 to leave a voicemail."
 
 - **1, 2, or 3** → "Connecting you now" → rings the recipient's cell,
   **+1 623-282-0110**. The three options all connect to the same place; they
@@ -34,6 +34,25 @@ back to Twilio and land in **our** voicemail (with transcription and SMS
 notification) instead of the cell's carrier voicemail.
 
 ### Voicemail
+
+The greeting depends on the time of day in Arizona (`America/Phoenix`, which
+never shifts for daylight saving). Between **7am and 7pm**:
+
+> "All our staff are currently busy. Please leave a brief voicemail regarding
+> your project and we will endeavor to return your call as soon as possible."
+
+Outside those hours:
+
+> "Thank you for your call. Our typical phone hours are 7am to 7pm everyday,
+> but if you leave your name, number, and project details, we will give you
+> service as quickly as a staff member is available."
+
+Either way the caller then hears *"Please begin after the tone, and press
+pound when you are finished"* so they know when to speak.
+
+Both greetings are used for **every** route into voicemail — pressing 4 and
+an unanswered forward alike. The window is set by `OPEN_HOUR` / `CLOSE_HOUR`
+at the top of `functions/voicemail.js`.
 
 The caller can record up to 2 minutes (Twilio's transcription limit) and
 finish with `#`. When the transcription is ready — usually under a minute
@@ -98,15 +117,17 @@ Call 623-400-5499:
 
 - Press **1** → "Connecting you now" → 623-282-0110 rings showing
   623-400-5499 as the caller.
-- Don't answer the cell → after 12 seconds the caller hears "no one is
-  available" and can leave a voicemail; the transcription SMS arrives on
-  the cell shortly after they hang up.
+- Don't answer the cell → after 12 seconds the caller gets the voicemail
+  greeting for the current time of day and can leave a message; the
+  transcription SMS arrives on the cell shortly after they hang up.
+- Call before 7am or after 7pm Arizona time → the voicemail greeting is the
+  phone-hours one instead of the staff-are-busy one.
 - Press **4** → straight to voicemail; same SMS afterward.
 - Press **9** → menu replays with the "Sorry, I did not get that" prompt.
 - Press nothing → after ~8 seconds the call connects anyway.
 
 Selections appear in the service's **Logs** tab as
-`menu selection: 1 (free quote) from +1602…`.
+`menu selection: 1 (new project) from +1602…`.
 
 ## Relationship to the website tracking
 

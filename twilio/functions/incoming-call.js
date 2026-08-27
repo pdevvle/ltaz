@@ -18,7 +18,7 @@ exports.handler = function (context, event, callback) {
   });
 
   const menu =
-    'Press 1 for a free quote. ' +
+    "Press 1 if you're calling regarding a new project. " +
     'Press 2 about an existing job. ' +
     'Press 3 for anything else. ' +
     'Press 4 to leave a voicemail.';

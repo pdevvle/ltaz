@@ -8,7 +8,7 @@
  * 623-400-5499 is the public Twilio number itself, not the destination.
  *
  * Digits:
- *   1  free quote
+ *   1  new project
  *   2  existing job
  *   3  anything else
  *   4  leave a voicemail (recorded, no dial)
@@ -22,7 +22,7 @@ exports.handler = function (context, event, callback) {
   const forwardTo = context.FORWARD_TO || '+16232820110';
 
   const reasons = {
-    1: 'free quote',
+    1: 'new project',
     2: 'existing job',
     3: 'other',
     4: 'voicemail',

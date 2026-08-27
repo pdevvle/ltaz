@@ -16,10 +16,6 @@ exports.handler = function (context, event, callback) {
     `dial to cell not answered (${event.DialCallStatus}) from ${event.From || 'unknown'}`
   );
 
-  twiml.say(
-    { voice: 'Polly.Joanna' },
-    'Sorry, no one is available to take your call right now.'
-  );
   twiml.redirect({ method: 'POST' }, 'voicemail');
 
   return callback(null, twiml);
