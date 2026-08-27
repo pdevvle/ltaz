@@ -5,14 +5,21 @@ directory holds the Twilio Functions that answer it:
 
 | Function | Role |
 |---|---|
-| `functions/incoming-call.js` | Answers and reads the menu |
+| `functions/incoming-call.js` | Answers; reads the menu in hours, routes to voicemail out of hours |
 | `functions/handle-selection.js` | Logs the pressed digit; dials the cell (1–3) or hands off to voicemail (4) |
 | `functions/dial-status.js` | After the dial: hangs up if answered, otherwise routes to voicemail |
 | `functions/voicemail.js` | Voicemail prompt (time-of-day aware) + recording, with transcription |
 | `functions/voicemail-done.js` | Logs the recording, thanks the caller, hangs up |
 | `functions/voicemail-notify.js` | Texts the transcription + listen link to the cell |
+| `functions/business-hours.private.js` | The hours and both greeting scripts, shared by the two above |
 
 ## The flow
+
+What a caller hears depends on the time of day in Arizona
+(`America/Phoenix`, which never shifts for daylight saving). **Business
+hours are 7am to 7pm, every day.**
+
+### In hours
 
 A call to 623-400-5499 hears:
 
@@ -33,13 +40,24 @@ carrier voicemail picks up at ~14 seconds. Unanswered calls therefore come
 back to Twilio and land in **our** voicemail (with transcription and SMS
 notification) instead of the cell's carrier voicemail.
 
+### Out of hours
+
+Before 7am or after 7pm there is **no menu and no attempt to ring anyone**.
+The call goes straight to voicemail, which opens with the alternate
+greeting naming the hours. The caller records a message and it arrives by
+SMS exactly as an in-hours voicemail does.
+
+Note this means an after-hours emergency — storm damage, a fallen tree —
+reaches voicemail rather than a person. If you want a way through, the
+natural shape is a "press 9 to reach someone now" option on the after-hours
+greeting; say the word and it's a small addition.
+
 ### Voicemail
 
-The greeting depends on the time of day in Arizona (`America/Phoenix`, which
-never shifts for daylight saving). Between **7am and 7pm**:
+The greeting depends on the same 7am-7pm window. In hours:
 
-> "All our staff are currently busy. Please leave a brief voicemail regarding
-> your project and we will endeavor to return your call as soon as possible."
+> "All of our staff are currently busy. Please leave a brief voicemail
+> regarding your project and we will provide you service as soon as possible."
 
 Outside those hours:
 
@@ -50,9 +68,15 @@ Outside those hours:
 Either way the caller then hears *"Please begin after the tone, and press
 pound when you are finished"* so they know when to speak.
 
-Both greetings are used for **every** route into voicemail — pressing 4 and
-an unanswered forward alike. The window is set by `OPEN_HOUR` / `CLOSE_HOUR`
-at the top of `functions/voicemail.js`.
+Every route into voicemail gets the greeting for the current time —
+pressing 4, an unanswered forward, and an out-of-hours call alike.
+
+The hours and both scripts live in **`functions/business-hours.private.js`**
+(`OPEN_HOUR`, `CLOSE_HOUR`, `DURING_HOURS`, `AFTER_HOURS`), so changing the
+window moves the greeting *and* the call routing together. If that file is
+ever missing from the service, both callers of it log the failure and fall
+back to treating the line as open — a deploy mistake will not silently send
+every caller to voicemail.
 
 The caller can record up to 2 minutes (Twilio's transcription limit) and
 finish with `#`. When the transcription is ready — usually under a minute
@@ -105,10 +129,15 @@ Recordings also remain listed in the Twilio Console under
    `functions/`: `/incoming-call`, `/handle-selection`, `/dial-status`,
    `/voicemail`, `/voicemail-done`, `/voicemail-notify`. Set all of them to
    **Public** visibility (Twilio's webhooks call them directly).
-3. (Optional) Under **Environment Variables** add `FORWARD_TO` and/or
+3. Add a seventh Function at `/business-hours` holding
+   `business-hours.private.js`, and set it to **Private** — it is shared
+   code, not a webhook target. (With the Serverless Toolkit the
+   `.private.js` filename does this automatically.) The path must be
+   exactly `business-hours`; that is the key the other two look it up by.
+4. (Optional) Under **Environment Variables** add `FORWARD_TO` and/or
    `TTS_VOICE`.
-4. **Deploy All**.
-5. Go to **Phone Numbers → Manage → Active Numbers → (623) 400-5499**, and
+5. **Deploy All**.
+6. Go to **Phone Numbers → Manage → Active Numbers → (623) 400-5499**, and
    under **Voice Configuration** set *A call comes in* to **Function**, pick
    the service, environment, and `/incoming-call`. Save.
 
@@ -132,8 +161,11 @@ Call 623-400-5499:
 - Don't answer the cell → after 12 seconds the caller gets the voicemail
   greeting for the current time of day and can leave a message; the
   transcription SMS arrives on the cell shortly after they hang up.
-- Call before 7am or after 7pm Arizona time → the voicemail greeting is the
-  phone-hours one instead of the staff-are-busy one.
+- Call before 7am or after 7pm Arizona time → no menu at all; the alternate
+  greeting plays and recording starts. Nobody's cell rings.
+- To rehearse the out-of-hours path during the day, temporarily set
+  `CLOSE_HOUR` to the current hour in `business-hours.private.js`, deploy,
+  call, then put it back.
 - Press **4** → straight to voicemail; same SMS afterward.
 - Press **9** → menu replays with the "Sorry, I did not get that" prompt.
 - Press nothing → after ~8 seconds the call connects anyway.

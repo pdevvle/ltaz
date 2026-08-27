@@ -1,49 +1,19 @@
 /**
- * Voicemail prompt + recording. Reached two ways: the caller pressed 4 at
- * the menu, or the forwarded call to the cell went unanswered
- * (dial-status.js redirects here).
+ * Voicemail prompt + recording. Reached three ways: the caller pressed 4 at
+ * the menu, the forwarded call to the cell went unanswered (dial-status.js
+ * redirects here), or the call came in outside business hours and
+ * incoming-call.js sent it straight here without a menu.
  *
  * The greeting depends on the time of day in Arizona: during phone hours
- * the caller is told staff are busy, and outside them they are told what
- * the hours are so they know why nobody picked up.
+ * the caller is told staff are busy, and outside them they get the
+ * alternate greeting naming the hours, so they know why nobody picked up.
+ * Both scripts and the hours themselves live in business-hours.private.js.
  *
  * maxLength is 120 because Twilio only transcribes recordings up to two
  * minutes; longer messages would arrive with no transcription in the SMS.
  * voicemail-notify.js texts the transcription and a listen link to the
  * cell once Twilio finishes transcribing.
  */
-
-// Arizona does not observe daylight saving, but naming the zone rather
-// than hard-coding a UTC offset keeps this correct regardless.
-const TIMEZONE = 'America/Phoenix';
-const OPEN_HOUR = 7; // 7am
-const CLOSE_HOUR = 19; // 7pm
-
-const DURING_HOURS =
-  'All our staff are currently busy. Please leave a brief voicemail ' +
-  'regarding your project and we will endeavor to return your call as ' +
-  'soon as possible.';
-
-const AFTER_HOURS =
-  'Thank you for your call. Our typical phone hours are 7am to 7pm ' +
-  'everyday, but if you leave your name, number, and project details, we ' +
-  'will give you service as quickly as a staff member is available.';
-
-/**
- * The local hour (0-23) in Arizona. Twilio Functions run on UTC, so the
- * server clock cannot be read directly.
- */
-function localHour(now) {
-  const hour = new Intl.DateTimeFormat('en-US', {
-    timeZone: TIMEZONE,
-    hour: 'numeric',
-    hour12: false,
-  }).format(now);
-
-  // en-US with hour12:false renders midnight as "24"; normalize to 0.
-  return Number(hour) % 24;
-}
-
 // Amazon Polly's generative engine — the most natural of the tiers Twilio
 // offers (basic < neural < generative). Set a TTS_VOICE environment
 // variable on the service to override, e.g. 'Polly.Joanna-Neural' to drop
@@ -51,14 +21,26 @@ function localHour(now) {
 // voice. Generative voices bill at a higher per-character rate than neural.
 const DEFAULT_VOICE = 'Polly.Joanna-Generative';
 
+// Used only if business-hours.private.js is missing from the service, so a
+// caller still hears something sensible and their message is still taken.
+const FALLBACK_GREETING =
+  'All of our staff are currently busy. Please leave a brief voicemail ' +
+  'regarding your project and we will provide you service as soon as ' +
+  'possible.';
+
 exports.handler = function (context, event, callback) {
   const voice = context.TTS_VOICE || DEFAULT_VOICE;
   const twiml = new Twilio.twiml.VoiceResponse();
 
-  const hour = localHour(new Date());
-  const openNow = hour >= OPEN_HOUR && hour < CLOSE_HOUR;
+  let greeting = FALLBACK_GREETING;
+  try {
+    const hours = require(Runtime.getFunctions()['business-hours'].path);
+    greeting = hours.isBusinessHours() ? hours.DURING_HOURS : hours.AFTER_HOURS;
+  } catch (err) {
+    console.error(`business-hours lookup failed, using fallback: ${err.message}`);
+  }
 
-  twiml.say({ voice }, openNow ? DURING_HOURS : AFTER_HOURS);
+  twiml.say({ voice }, greeting);
   twiml.say(
     { voice },
     'Please begin after the tone, and press pound when you are finished.'
