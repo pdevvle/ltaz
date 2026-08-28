@@ -121,7 +121,42 @@ Function refuses a plain-http URL rather than sending it in the clear. If
 either variable is unset, the Function logs loudly and the voicemail is
 recorded in Twilio but logged nowhere else.
 
-### Optional: text it as well
+### Every call texts the operator the caller's number
+
+When a call reaches a terminal state, the operator gets:
+
+```
+Call from (602) 555-1234 (0:42). No voicemail left.
+```
+
+This matters more than it looks. The forwarded leg deliberately presents
+623-400-5499 as caller ID so business calls are recognizable on the cell —
+which means the phone's own call log shows the *business* number for every
+call and never the person who rang. Without this text there is no way to
+call someone back.
+
+It covers the case nothing else can: a caller who hangs up during the menu
+never reaches any step in the call flow, so only a call-status webhook sees
+them.
+
+Suppressed when a voicemail was left, since those texts already carry the
+number. The Function asks Twilio whether the call has a recording rather
+than tracking state; if that lookup fails it sends anyway, because a
+duplicate text costs nothing and a lost phone number costs a job.
+
+**This needs a second webhook on the phone number.** Under **Phone Numbers
+→ Active Numbers → (623) 400-5499 → Voice Configuration**, set *Call status
+changes* to the Function's URL with the step appended:
+
+```
+https://<your-service>.twil.io/ivr?step=call-status
+```
+
+It is a plain URL field, not a Function picker — copy the `/ivr` URL from
+the Functions editor and add `?step=call-status`. Without it this feature
+is simply inert; the rest of the flow is unaffected.
+
+### Texting setup
 
 A text can go out alongside the website record — an alert when recording
 stops, the transcript when it is ready. Off unless configured. Set **one**

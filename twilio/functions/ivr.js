@@ -16,6 +16,14 @@
  *   voicemail     play the greeting and record
  *   done          the caller finished recording; log it to the website
  *   notify        transcription is ready; add it to the same record
+ *   call-status   the call ended, however it ended — text the caller's
+ *                 number if no voicemail already carried it
+ *
+ * `call-status` is NOT reached from the call flow. Wire it separately as
+ * the phone number's "Call status changes" webhook:
+ *   https://<your-service>.twil.io/ivr?step=call-status
+ * A caller who hangs up during the menu never reaches any step above, so
+ * this is the only place that sees every call.
  */
 
 // ---------------------------------------------------------------- settings
@@ -112,6 +120,19 @@ function isBusinessHours() {
 
   // en-US with hour12:false renders midnight as "24"; normalize to 0.
   return Number(hour) % 24 >= OPEN_HOUR && Number(hour) % 24 < CLOSE_HOUR;
+}
+
+/** "+16025551234" -> "(602) 555-1234" for humans reading a text. */
+function prettyNumber(raw) {
+  const digits = String(raw || '').replace(/\D/g, '').slice(-10);
+  if (digits.length !== 10) return raw || 'unknown caller';
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
+/** 42 -> "0:42", 95 -> "1:35". */
+function duration(seconds) {
+  const total = Math.max(0, Number(seconds) || 0);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 }
 
 /** "+16025551234" -> "6 0 2, 5 5 5, 1 2 3 4" so TTS reads it as digits. */
@@ -408,8 +429,8 @@ exports.handler = async function (context, event, callback) {
       // Immediate heads-up. The transcript follows once Twilio has it.
       await sendSms(
         context,
-        `New voicemail from ${event.From || 'unknown caller'} ` +
-          `(${event.RecordingDuration || 0}s).\nListen: ${listen}`
+        `New voicemail from ${prettyNumber(event.From)} ` +
+          `(${duration(event.RecordingDuration)}).\nListen: ${listen}`
       );
 
       twiml.say({ voice }, 'Thank you. Your message has been received. Goodbye.');
@@ -445,7 +466,51 @@ exports.handler = async function (context, event, callback) {
 
       await sendSms(
         context,
-        `Voicemail from ${event.From || 'unknown caller'}:\n"${text}"`
+        `Voicemail from ${prettyNumber(event.From)}:\n"${text}"`
+      );
+      break;
+    }
+
+    // ------------------------- the call ended, however it ended
+    case 'call-status': {
+      // Wired as the phone number's "Call status changes" webhook, not
+      // reached from the flow. It is the only hook that sees a caller who
+      // hung up during the menu, and the only way the operator learns the
+      // caller's number at all: the forwarded leg presents 623-400-5499 as
+      // caller ID, so their phone's call log shows the business number for
+      // every call, never the person who rang.
+      if (event.CallStatus !== 'completed') {
+        break; // ringing / in-progress chatter, not a finished call
+      }
+
+      const caller = event.From || '';
+      const secs = Number(event.CallDuration || 0);
+      console.log(`call-status: ${caller} ended after ${secs}s`);
+
+      // A voicemail already texted this number twice over. Ask Twilio
+      // rather than tracking state: the Function is stateless, and the
+      // recording exists by the time the call reaches a terminal state.
+      let hasVoicemail = false;
+      try {
+        const recordings = await context
+          .getTwilioClient()
+          .recordings.list({ callSid: event.CallSid, limit: 1 });
+        hasVoicemail = recordings.length > 0;
+      } catch (err) {
+        // Send anyway. A duplicate text costs nothing; a lost customer
+        // phone number costs a job.
+        console.error(`could not check for a recording: ${err.message}`);
+      }
+
+      if (hasVoicemail) {
+        console.log('voicemail left, so its texts already carried the number');
+        break;
+      }
+
+      await sendSms(
+        context,
+        `Call from ${prettyNumber(caller)} (${duration(secs)}). ` +
+          `No voicemail left.`
       );
       break;
     }
