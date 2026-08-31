@@ -2,18 +2,17 @@
 /**
  * Plugin Name: LTAZ Voicemail Inbox
  * Plugin URI:  https://github.com/pdevvle/ltaz
- * Description: Receives voicemails from the Twilio IVR on 623-400-5499, stores each one privately with its transcript and recording, emails it out, and exposes a PIN-protected log page for reading them without a WordPress login.
- * Version:     1.1.0
+ * Description: Receives calls and voicemails from the Twilio IVR on 623-400-5499, stores each one privately with its transcript and recording, emails the voicemails out, and exposes a PIN-protected call log for reading them without a WordPress login.
+ * Version:     1.2.0
  * Author:      Lee's Trees
  * License:     GPL v2 or later
  * Requires PHP: 8.0
  *
  * WHY THIS EXISTS
- *  US long codes cannot send application SMS until the number is registered for
- *  A2P 10DLC. Rather than go through that to text yourself, the Twilio Function
- *  POSTs each voicemail here. WordPress keeps the written record and sends the
- *  email (Post SMTP is already configured on this site), so no messaging
- *  registration is involved anywhere.
+ *  US long codes cannot send application SMS until the number is registered
+ *  for A2P 10DLC, so the Twilio Function POSTs everything here instead and
+ *  WordPress keeps the written record. Texting, where it works, is a
+ *  convenience layer on top; this is the system of record.
  *
  * SETUP
  *  1. Add a shared secret to wp-config.php, above "That's all, stop editing":
@@ -43,7 +42,7 @@
  *     cached copy of the unlocked page would serve the log to everyone.
  *
  * PRIVACY
- *  Voicemails hold customer names, numbers and project details.
+ *  These records hold customer names, numbers and project details.
  *   - The post type is public => false and every record is saved 'private', so
  *     nothing is web-visible through WordPress itself and nothing is indexable.
  *   - The log page is reachable without a login by design, gated on a PIN. A
@@ -59,11 +58,16 @@
  * THE ENDPOINT
  *  POST /wp-json/ltaz/v1/voicemail
  *  Header: X-LTAZ-Secret: <shared secret>
- *  Body (JSON): call_sid, from, to, duration, recording_url, transcript
+ *  Body (JSON): call_sid, from, to, duration, recording_url, transcript, kind
  *
- *  Twilio posts twice per voicemail: once when recording stops (no transcript
- *  yet) and again when transcription finishes. Both carry the same call_sid, so
- *  the second updates the first record rather than creating a duplicate.
+ *  `kind` is 'voicemail' (default) or 'call'. Twilio posts up to three times
+ *  per call, all under the same call_sid, and they can arrive in any order:
+ *    - when recording stops        kind=voicemail, recording, no transcript
+ *    - when transcription finishes kind=voicemail, the transcript
+ *    - when the call itself ends   kind=call, only if no voicemail was left
+ *  Same call_sid always means one record. An empty transcript never
+ *  overwrites one already stored, and a 'call' post never downgrades a
+ *  record that already holds a voicemail, so ordering cannot lose data.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -77,10 +81,14 @@ final class LTAZ_Voicemail {
 	const REST_ROUTE = '/voicemail';
 	const SHORTCODE  = 'ltaz_voicemail_log';
 
+	const KIND_VOICEMAIL = 'voicemail';
+	const KIND_CALL      = 'call';
+
 	const META_SID    = '_ltaz_vm_call_sid';
 	const META_FROM   = '_ltaz_vm_from';
 	const META_URL    = '_ltaz_vm_recording';
 	const META_SECS   = '_ltaz_vm_duration';
+	const META_KIND   = '_ltaz_vm_kind';
 	const META_MAILED = '_ltaz_vm_transcript_mailed';
 
 	const COOKIE          = 'ltaz_vm_unlocked';
@@ -88,6 +96,9 @@ final class LTAZ_Voicemail {
 	const MAX_ATTEMPTS    = 8;
 	const LOCKOUT_MINUTES = 15;
 	const PER_PAGE        = 50;
+
+	const NO_VOICEMAIL = '(no voicemail left)';
+	const NO_TRANSCRIPT = '(no transcript)';
 
 	public static function boot(): void {
 		$self = new self();
@@ -107,12 +118,12 @@ final class LTAZ_Voicemail {
 			self::POST_TYPE,
 			array(
 				'labels'              => array(
-					'name'          => __( 'Voicemails', 'ltaz' ),
-					'singular_name' => __( 'Voicemail', 'ltaz' ),
-					'menu_name'     => __( 'Voicemails', 'ltaz' ),
-					'all_items'     => __( 'All Voicemails', 'ltaz' ),
-					'search_items'  => __( 'Search Voicemails', 'ltaz' ),
-					'not_found'     => __( 'No voicemails yet.', 'ltaz' ),
+					'name'          => __( 'Call Log', 'ltaz' ),
+					'singular_name' => __( 'Call', 'ltaz' ),
+					'menu_name'     => __( 'Call Log', 'ltaz' ),
+					'all_items'     => __( 'All Calls', 'ltaz' ),
+					'search_items'  => __( 'Search Calls', 'ltaz' ),
+					'not_found'     => __( 'No calls yet.', 'ltaz' ),
 				),
 				// Never web-visible: these hold customer names and numbers. The
 				// log page below reads them deliberately, behind the PIN.
@@ -122,7 +133,7 @@ final class LTAZ_Voicemail {
 				'show_ui'             => true,
 				'show_in_menu'        => true,
 				'show_in_rest'        => false,
-				'menu_icon'           => 'dashicons-microphone',
+				'menu_icon'           => 'dashicons-phone',
 				'menu_position'       => 26,
 				'supports'            => array( 'title', 'editor' ),
 				'capability_type'     => 'post',
@@ -177,9 +188,14 @@ final class LTAZ_Voicemail {
 		$duration   = absint( $request->get_param( 'duration' ) );
 		$recording  = esc_url_raw( (string) $request->get_param( 'recording_url' ) );
 		$transcript = trim( sanitize_textarea_field( (string) $request->get_param( 'transcript' ) ) );
+		$kind       = sanitize_text_field( (string) $request->get_param( 'kind' ) );
 
 		if ( '' === $call_sid ) {
 			return new WP_Error( 'ltaz_vm_no_sid', 'call_sid is required.', array( 'status' => 400 ) );
+		}
+
+		if ( self::KIND_CALL !== $kind ) {
+			$kind = self::KIND_VOICEMAIL;
 		}
 
 		// Only ever store a recording link on Twilio's own domain, so a forged
@@ -192,23 +208,33 @@ final class LTAZ_Voicemail {
 		}
 
 		$existing = $this->find_by_call_sid( $call_sid );
-		$body     = '' !== $transcript ? $transcript : '(no transcript)';
 
 		if ( $existing ) {
-			// The transcript callback arriving after the recording callback.
 			$post_id = $existing;
-			wp_update_post(
-				array(
-					'ID'           => $post_id,
-					'post_content' => $body,
-				)
-			);
+			$was     = (string) get_post_meta( $post_id, self::META_KIND, true );
+
+			// A 'call' post must never downgrade a record that already holds a
+			// voicemail, and an empty transcript must never overwrite one that
+			// is already stored. Between them these make the three posts
+			// order-independent.
+			if ( self::KIND_VOICEMAIL === $was ) {
+				$kind = self::KIND_VOICEMAIL;
+			}
+
+			if ( '' !== $transcript ) {
+				wp_update_post(
+					array(
+						'ID'           => $post_id,
+						'post_content' => $transcript,
+					)
+				);
+			}
 		} else {
 			$post_id = wp_insert_post(
 				array(
 					'post_type'    => self::POST_TYPE,
-					'post_title'   => $this->build_title( $from ),
-					'post_content' => $body,
+					'post_title'   => $this->build_title( $from, $kind ),
+					'post_content' => $this->initial_content( $kind, $transcript ),
 					'post_status'  => 'private',
 				),
 				true
@@ -221,6 +247,8 @@ final class LTAZ_Voicemail {
 			update_post_meta( $post_id, self::META_SID, $call_sid );
 		}
 
+		update_post_meta( $post_id, self::META_KIND, $kind );
+
 		if ( '' !== $from ) {
 			update_post_meta( $post_id, self::META_FROM, $from );
 		}
@@ -231,17 +259,38 @@ final class LTAZ_Voicemail {
 			update_post_meta( $post_id, self::META_SECS, $duration );
 		}
 
-		$mailed = $this->maybe_email( $post_id, $from, $duration, $recording, $transcript, (bool) $existing );
+		// Calls that left no message are already covered by their text, so
+		// only voicemails are emailed.
+		$mailed = false;
+		if ( self::KIND_VOICEMAIL === $kind ) {
+			$mailed = $this->maybe_email(
+				$post_id,
+				$from,
+				$duration,
+				$recording,
+				$transcript,
+				(bool) $existing
+			);
+		}
 
 		return new WP_REST_Response(
 			array(
 				'ok'      => true,
 				'post_id' => $post_id,
+				'kind'    => $kind,
 				'created' => ! $existing,
 				'emailed' => $mailed,
 			),
 			200
 		);
+	}
+
+	private function initial_content( string $kind, string $transcript ): string {
+		if ( self::KIND_CALL === $kind ) {
+			return self::NO_VOICEMAIL;
+		}
+
+		return '' !== $transcript ? $transcript : self::NO_TRANSCRIPT;
 	}
 
 	private function find_by_call_sid( string $call_sid ): int {
@@ -260,14 +309,18 @@ final class LTAZ_Voicemail {
 		return $found ? (int) $found[0] : 0;
 	}
 
-	private function build_title( string $from ): string {
+	private function build_title( string $from, string $kind ): string {
+		$who = $this->pretty_number( $from );
 		// wp_date() renders in the site's timezone, not UTC.
-		return sprintf(
+		$when = wp_date( 'M j, Y g:i a' );
+
+		if ( self::KIND_CALL === $kind ) {
 			/* translators: 1: caller number, 2: date and time */
-			__( 'Voicemail from %1$s — %2$s', 'ltaz' ),
-			$this->pretty_number( $from ),
-			wp_date( 'M j, Y g:i a' )
-		);
+			return sprintf( __( 'Call from %1$s — %2$s', 'ltaz' ), $who, $when );
+		}
+
+		/* translators: 1: caller number, 2: date and time */
+		return sprintf( __( 'Voicemail from %1$s — %2$s', 'ltaz' ), $who, $when );
 	}
 
 	private function pretty_number( string $raw ): string {
@@ -279,6 +332,10 @@ final class LTAZ_Voicemail {
 			return sprintf( '(%s) %s-%s', substr( $digits, 1, 3 ), substr( $digits, 4, 3 ), substr( $digits, 7 ) );
 		}
 		return '' !== $raw ? $raw : __( 'an unknown number', 'ltaz' );
+	}
+
+	private function clock( int $seconds ): string {
+		return sprintf( '%d:%02d', intdiv( $seconds, 60 ), $seconds % 60 );
 	}
 
 	// -------------------------------------------------------------- email
@@ -514,9 +571,15 @@ final class LTAZ_Voicemail {
 			.ltaz-vm-gate button,.ltaz-vm-lock button{padding:.6em 1.4em;cursor:pointer}
 			.ltaz-vm-err{color:#b32d2e;font-weight:600}
 			.ltaz-vm-item{border:1px solid #ddd;border-radius:6px;padding:1rem 1.25rem;margin:0 0 1rem}
+			.ltaz-vm-item.is-call{border-style:dashed;background:#fafafa}
 			.ltaz-vm-who{font-weight:700;font-size:1.05rem}
+			.ltaz-vm-tag{font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+				border-radius:3px;padding:.15em .5em;margin-left:.5em;vertical-align:.1em}
+			.ltaz-vm-tag.is-vm{background:#d8f0dc;color:#14562a}
+			.ltaz-vm-tag.is-call{background:#eee;color:#555}
 			.ltaz-vm-meta{color:#666;font-size:.85rem;margin:.15rem 0 .6rem}
 			.ltaz-vm-text{white-space:pre-wrap;margin:0 0 .75rem}
+			.ltaz-vm-text.is-empty{color:#888;font-style:italic}
 			.ltaz-vm-item audio{width:100%}
 			.ltaz-vm-lock{text-align:right;margin:1.5rem 0 0}
 		</style>';
@@ -550,7 +613,7 @@ final class LTAZ_Voicemail {
 		}
 
 		$out .= '<form method="post">';
-		$out .= '<label for="ltaz-vm-pin">' . esc_html__( 'Enter PIN to view voicemails', 'ltaz' ) . '</label>';
+		$out .= '<label for="ltaz-vm-pin">' . esc_html__( 'Enter PIN to view the call log', 'ltaz' ) . '</label>';
 		$out .= '<input id="ltaz-vm-pin" name="ltaz_vm_pin" type="password" inputmode="numeric" '
 			. 'autocomplete="off" autofocus required>';
 		$out .= '<input type="hidden" name="ltaz_vm_action" value="unlock">';
@@ -579,23 +642,33 @@ final class LTAZ_Voicemail {
 		$out = '<div class="ltaz-vm">';
 
 		if ( ! $query->have_posts() ) {
-			$out .= '<p>' . esc_html__( 'No voicemails yet.', 'ltaz' ) . '</p>';
+			$out .= '<p>' . esc_html__( 'No calls yet.', 'ltaz' ) . '</p>';
 		}
 
 		foreach ( $query->posts as $post ) {
-			$from = (string) get_post_meta( $post->ID, self::META_FROM, true );
-			$url  = (string) get_post_meta( $post->ID, self::META_URL, true );
-			$secs = (int) get_post_meta( $post->ID, self::META_SECS, true );
+			$from    = (string) get_post_meta( $post->ID, self::META_FROM, true );
+			$url     = (string) get_post_meta( $post->ID, self::META_URL, true );
+			$secs    = (int) get_post_meta( $post->ID, self::META_SECS, true );
+			$kind    = (string) get_post_meta( $post->ID, self::META_KIND, true );
+			$is_call = self::KIND_CALL === $kind;
 
 			$meta = wp_date( 'M j, Y g:i a', get_post_timestamp( $post ) );
 			if ( $secs > 0 ) {
-				$meta .= sprintf( ' &middot; %d:%02d', intdiv( $secs, 60 ), $secs % 60 );
+				$meta .= ' &middot; ' . $this->clock( $secs );
 			}
 
-			$out .= '<div class="ltaz-vm-item">';
-			$out .= '<div class="ltaz-vm-who">' . esc_html( $this->pretty_number( $from ) ) . '</div>';
+			$out .= '<div class="ltaz-vm-item' . ( $is_call ? ' is-call' : '' ) . '">';
+			$out .= '<div class="ltaz-vm-who">' . esc_html( $this->pretty_number( $from ) );
+			$out .= $is_call
+				? '<span class="ltaz-vm-tag is-call">' . esc_html__( 'call', 'ltaz' ) . '</span>'
+				: '<span class="ltaz-vm-tag is-vm">' . esc_html__( 'voicemail', 'ltaz' ) . '</span>';
+			$out .= '</div>';
 			$out .= '<div class="ltaz-vm-meta">' . wp_kses_post( $meta ) . '</div>';
-			$out .= '<p class="ltaz-vm-text">' . esc_html( $post->post_content ) . '</p>';
+
+			$body  = (string) $post->post_content;
+			$empty = ( self::NO_VOICEMAIL === $body || self::NO_TRANSCRIPT === $body );
+			$out  .= '<p class="ltaz-vm-text' . ( $empty ? ' is-empty' : '' ) . '">'
+				. esc_html( $body ) . '</p>';
 
 			if ( '' !== $url ) {
 				$out .= '<audio controls preload="none" src="' . esc_url( $url ) . '"></audio>';
@@ -639,6 +712,7 @@ final class LTAZ_Voicemail {
 		return array(
 			'cb'              => isset( $columns['cb'] ) ? $columns['cb'] : '',
 			'title'           => __( 'Caller', 'ltaz' ),
+			'ltaz_vm_kind'    => __( 'Type', 'ltaz' ),
 			'ltaz_vm_message' => __( 'Message', 'ltaz' ),
 			'ltaz_vm_length'  => __( 'Length', 'ltaz' ),
 			'ltaz_vm_listen'  => __( 'Recording', 'ltaz' ),
@@ -647,6 +721,14 @@ final class LTAZ_Voicemail {
 	}
 
 	public function column( string $column, int $post_id ): void {
+		if ( 'ltaz_vm_kind' === $column ) {
+			$kind = (string) get_post_meta( $post_id, self::META_KIND, true );
+			echo self::KIND_CALL === $kind
+				? esc_html__( 'Call', 'ltaz' )
+				: esc_html__( 'Voicemail', 'ltaz' );
+			return;
+		}
+
 		if ( 'ltaz_vm_message' === $column ) {
 			$post = get_post( $post_id );
 			echo esc_html( wp_trim_words( $post ? $post->post_content : '', 20 ) );
@@ -655,7 +737,7 @@ final class LTAZ_Voicemail {
 
 		if ( 'ltaz_vm_length' === $column ) {
 			$secs = (int) get_post_meta( $post_id, self::META_SECS, true );
-			echo $secs > 0 ? esc_html( sprintf( '%d:%02d', intdiv( $secs, 60 ), $secs % 60 ) ) : '&mdash;';
+			echo $secs > 0 ? esc_html( $this->clock( $secs ) ) : '&mdash;';
 			return;
 		}
 

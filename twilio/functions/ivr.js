@@ -16,8 +16,9 @@
  *   voicemail     play the greeting and record
  *   done          the caller finished recording; log it to the website
  *   notify        transcription is ready; add it to the same record
- *   call-status   the call ended, however it ended — text the caller's
- *                 number if no voicemail already carried it
+ *   call-status   the call ended, however it ended — log it to the website
+ *                 and text the caller's number, unless a voicemail already
+ *                 carried both
  *
  * `call-status` is NOT reached from the call flow. Wire it separately as
  * the phone number's "Call status changes" webhook:
@@ -424,6 +425,7 @@ exports.handler = async function (context, event, callback) {
         duration: Number(event.RecordingDuration || 0),
         recording_url: listen,
         transcript: '',
+        kind: 'voicemail',
       });
 
       // Immediate heads-up. The transcript follows once Twilio has it.
@@ -455,6 +457,7 @@ exports.handler = async function (context, event, callback) {
         duration: 0,
         recording_url: event.RecordingUrl ? `${event.RecordingUrl}.mp3` : '',
         transcript: event.TranscriptionText,
+        kind: 'voicemail',
       });
 
       let text = event.TranscriptionText;
@@ -503,9 +506,22 @@ exports.handler = async function (context, event, callback) {
       }
 
       if (hasVoicemail) {
-        console.log('voicemail left, so its texts already carried the number');
+        console.log('voicemail left, so its record and texts already cover this');
         break;
       }
+
+      // Goes to the same endpoint as a voicemail, tagged `call`, so the log
+      // page on the site shows every call rather than only the ones that
+      // left a message. A text alone scrolls away; this is searchable.
+      await logToSite(context, {
+        call_sid: event.CallSid || '',
+        from: caller,
+        to: event.To || '',
+        duration: secs,
+        recording_url: '',
+        transcript: '',
+        kind: 'call',
+      });
 
       await sendSms(
         context,

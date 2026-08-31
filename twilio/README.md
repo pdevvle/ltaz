@@ -121,13 +121,18 @@ Function refuses a plain-http URL rather than sending it in the clear. If
 either variable is unset, the Function logs loudly and the voicemail is
 recorded in Twilio but logged nowhere else.
 
-### Every call texts the operator the caller's number
+### Every call reaches the operator, and the log
 
-When a call reaches a terminal state, the operator gets:
+When a call reaches a terminal state, it is written to the website's call
+log and the operator gets a text:
 
 ```
 Call from (602) 555-1234 (0:42). No voicemail left.
 ```
+
+The log page therefore shows **every** call, not only the ones that left a
+message — a text scrolls away, a row does not. Calls appear tagged `call`
+with no audio; voicemails keep their recording and transcript.
 
 This matters more than it looks. The forwarded leg deliberately presents
 623-400-5499 as caller ID so business calls are recognizable on the cell —
@@ -139,8 +144,8 @@ It covers the case nothing else can: a caller who hangs up during the menu
 never reaches any step in the call flow, so only a call-status webhook sees
 them.
 
-Suppressed when a voicemail was left, since those texts already carry the
-number. The Function asks Twilio whether the call has a recording rather
+Both the row and the text are suppressed when a voicemail was left, since
+that record and its texts already carry the number. The Function asks Twilio whether the call has a recording rather
 than tracking state; if that lookup fails it sends anyway, because a
 duplicate text costs nothing and a lost phone number costs a job.
 
