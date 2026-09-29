@@ -1,0 +1,177 @@
+/* ==========================================================================
+   Landscape Design page — sleek/modern scope.
+
+   Deliberately a SEPARATE scope from .lt-irr rather than a reuse of it. The
+   irrigation page's components are a service-card look; this page wants more
+   whitespace, larger display type, hairline rules and an asymmetric grid, so
+   sharing selectors would have meant fighting them.
+
+   Brand tokens are the same, read from the Elementor Default Kit (post 5).
+   Everything is scoped to .lt-land, so it cannot affect any other page.
+   ========================================================================== */
+
+.lt-land{
+  --g:#2E6E36; --g-dk:#1B3F21; --g-lt:#4FB848;
+  --o:#FA9046; --pv:#D2FA52;
+  --ink:#0E120E; --mut:#616760; --line:#E3E6E1; --mist:#F4F6F2;
+}
+
+/* ---- type -------------------------------------------------------------- */
+.lt-land h1,.lt-land h2,.lt-land h3{
+  text-transform:uppercase; letter-spacing:.05em; line-height:1.08; font-weight:600;
+}
+.lt-land h1{ letter-spacing:.025em; font-weight:500; }
+.lt-land .lt-eyebrow{
+  text-transform:uppercase; letter-spacing:.2em; font-size:.75rem;
+  font-weight:600; margin-bottom:.9rem;
+}
+.lt-land .lt-lede{ color:var(--mut); max-width:58ch; }
+
+/* thin rule under section headings, a modern cue that costs nothing */
+.lt-land .lt-rule{
+  border:0; border-top:1px solid var(--line); margin:0 0 2.5rem; max-width:1160px;
+}
+
+/* ---- hero -------------------------------------------------------------- */
+.lt-land.lt-hero .wp-block-cover__inner-container{ max-width:1160px; margin:0 auto; }
+.lt-land .lt-hero-rating{
+  display:inline-flex; align-items:center; gap:.6rem;
+  margin-top:1.8rem; padding:.55rem 1rem;
+  border:1px solid rgba(255,255,255,.35); border-radius:100px;
+  font-size:.82rem; letter-spacing:.12em; text-transform:uppercase; font-weight:600;
+}
+.lt-land .lt-hero-rating a{ color:#fff; text-decoration:underline; text-underline-offset:3px; }
+
+/* ---- reviews band (sits high on the page on purpose) ------------------- */
+.lt-land.lt-reviews h2{ color:#fff; }
+.lt-land .lt-revtrack{
+  display:flex !important;
+  flex-wrap:nowrap !important;
+  overflow-x:auto !important;
+  gap:1.25rem !important;
+  max-width:1160px; margin-left:auto; margin-right:auto;
+  align-items:stretch;
+  scroll-snap-type:x mandatory;
+  overscroll-behavior-x:contain;
+  padding-bottom:1.1rem;
+  scrollbar-width:thin; scrollbar-color:var(--g-lt) rgba(255,255,255,.18);
+}
+.lt-land .lt-revtrack > .wp-block-column{
+  flex:0 0 clamp(285px,84%,430px) !important;
+  width:auto !important; max-width:none !important;
+  scroll-snap-align:start;
+  background:#fff; border-radius:12px; padding:1.75rem 1.6rem;
+}
+.lt-land .lt-revtrack .wp-block-quote{
+  margin:0; padding:0; border:0; font-style:normal;
+}
+.lt-land .lt-revtrack .wp-block-quote p{ font-size:.97rem; color:#23271f; }
+.lt-land .lt-revtrack cite{
+  display:block; margin-top:1rem; padding-top:.9rem;
+  border-top:1px solid var(--line);
+  font-style:normal; font-weight:600; font-size:.78rem;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--g);
+}
+.lt-land .lt-revtrack::-webkit-scrollbar{ height:8px; }
+.lt-land .lt-revtrack::-webkit-scrollbar-track{ background:rgba(255,255,255,.18); border-radius:4px; }
+.lt-land .lt-revtrack::-webkit-scrollbar-thumb{ background:var(--g-lt); border-radius:4px; }
+@media (prefers-reduced-motion:reduce){
+  .lt-land .lt-revtrack{ scroll-snap-type:none; }
+}
+
+/* ---- service cards ----------------------------------------------------- */
+.lt-land .lt-svc figure.wp-block-image{ margin:0 0 1.15rem; }
+.lt-land .lt-svc figure.wp-block-image img{
+  display:block; width:100%; height:230px; object-fit:cover; border-radius:10px;
+}
+.lt-land .lt-svc .wp-block-column{ padding:0; }
+.lt-land .lt-svc h3{ font-size:1.05rem; letter-spacing:.07em; margin:0 0 .5rem; }
+.lt-land .lt-svc p{ color:var(--mut); font-size:.96rem; margin:0; }
+
+/* ---- numbered process ------------------------------------------------- */
+.lt-land .lt-steps .wp-block-column{
+  border-top:2px solid var(--g); padding-top:1.1rem;
+}
+.lt-land .lt-steps h3{
+  font-size:.95rem; letter-spacing:.09em; margin:0 0 .5rem;
+}
+.lt-land .lt-steps h3::before{
+  content:counter(lt-step) " / ";
+  color:var(--g-lt); font-weight:700;
+}
+.lt-land .lt-steps .wp-block-column{ counter-increment:lt-step; }
+.lt-land .lt-steps{ counter-reset:lt-step; }
+.lt-land .lt-steps p{ color:var(--mut); font-size:.95rem; margin:0; }
+
+/* ---- pull quote -------------------------------------------------------- */
+.lt-land .lt-pull{ max-width:900px; margin-left:auto; margin-right:auto; text-align:center; }
+.lt-land .lt-pull p{
+  font-size:clamp(1.25rem,2.6vw,1.75rem); line-height:1.4; font-weight:500; color:var(--ink);
+}
+.lt-land .lt-pull cite{
+  display:block; margin-top:1.1rem; font-style:normal; font-weight:600;
+  font-size:.78rem; letter-spacing:.14em; text-transform:uppercase; color:var(--g);
+}
+
+/* ---- gallery ---------------------------------------------------------- */
+.lt-land .lt-gal figure.wp-block-image{ margin:0; }
+.lt-land .lt-gal figure.wp-block-image img{
+  display:block; width:100%; height:300px; object-fit:cover; border-radius:10px;
+}
+.lt-land .lt-gal .lt-tall img{ height:420px; }
+
+/* ---- buttons ---------------------------------------------------------- */
+.lt-land .wp-block-button__link{
+  border-radius:100px; font-weight:600; letter-spacing:.09em;
+  text-transform:uppercase; font-size:.86rem; padding:.95em 2em;
+}
+
+/* ---- call popup (same <details> pattern as the irrigation page) -------- */
+.lt-land .lt-callpop{ display:none; border:0; background:none; padding:0; margin:1.7rem 0 0; }
+.lt-land .lt-callpop > summary{
+  display:inline-block; cursor:pointer; list-style:none;
+  background:var(--o); color:#1a1a1a; padding:.95em 2em; border-radius:100px;
+  font-weight:600; letter-spacing:.09em; text-transform:uppercase; font-size:.86rem;
+}
+.lt-land .lt-callpop > summary::-webkit-details-marker{ display:none; }
+.lt-land .lt-callpop > summary::marker{ content:""; }
+.lt-land .lt-callpop > summary:hover{ background:#e07a30; color:#fff; }
+.lt-land .lt-callpop[open]::before{
+  content:""; position:fixed; inset:0; background:rgba(8,12,8,.68); z-index:9998;
+}
+.lt-land .lt-callpop[open] > summary{ position:relative; z-index:10000; }
+.lt-land .lt-callpop[open] > .lt-callpop-panel{
+  position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+  z-index:9999; background:#fff; color:var(--ink);
+  padding:2.6rem 3rem; border-radius:14px; text-align:center;
+  width:min(92vw,460px); box-shadow:0 24px 70px rgba(0,0,0,.42);
+}
+.lt-land .lt-callpop-label{
+  margin:0 0 .5rem; font-size:.75rem; font-weight:600;
+  letter-spacing:.2em; text-transform:uppercase; color:var(--g);
+}
+.lt-land .lt-callpop-num{ margin:0; line-height:1.1; }
+.lt-land .lt-callpop-num a{
+  font-size:clamp(2rem,4.5vw,2.9rem); font-weight:700;
+  color:var(--ink); text-decoration:none; white-space:nowrap;
+}
+.lt-land .lt-callpop-num a:hover{ color:var(--g); }
+.lt-land .lt-callpop-hrs{
+  margin:.6rem 0 0; font-size:.82rem; font-weight:600;
+  letter-spacing:.11em; text-transform:uppercase; color:var(--mut);
+}
+
+/* desktop hides the raw number, mobile keeps it (sticky footer + tel: button) */
+@media (min-width:782px){
+  .lt-land .lt-callpop{ display:block; }
+  .lt-land .lt-telbtn{ display:none !important; }
+}
+@media (max-width:781px){
+  .lt-land .lt-callpop{ display:none !important; }
+  .lt-land .wp-block-buttons{ flex-direction:column; align-items:stretch; }
+  .lt-land .wp-block-button{ width:100%; }
+  .lt-land .wp-block-button__link{ display:block; text-align:center; }
+  .lt-land .lt-gal figure.wp-block-image img,
+  .lt-land .lt-gal .lt-tall img{ height:220px; }
+  .lt-land .lt-svc figure.wp-block-image img{ height:200px; }
+}
