@@ -91,3 +91,29 @@ and was left out on purpose. The excerpt truncates right after the name, and the
 sibling Storm Cleanup page attributes its review to **Home Advisor**, not Google
 — so putting Jamie S. under a "on Google" heading could be wrong. Confirm the
 source and it goes in.
+
+## Also built from /new-landscaping-services/ (page 1855)
+
+That page carried material the redesign was missing:
+
+- **Three more Google reviews, with dates** — Jamie S. (April 2026), Michael L.
+  (May 2026), Cheryl B. (April 2026). The carousel now runs **six** reviews,
+  which is the point at which a carousel actually earns its place.
+- **This settles the Jamie S. question.** It was held back earlier because the
+  excerpt truncated at the name and a sibling page credited Home Advisor. Page
+  1855 shows the full citation: *"Jamie S., April, 2026, via Google"*. It is a
+  Google review and is now in the carousel.
+- **The "Aspects of New Landscaping Installation" feature list** — design &
+  planning, cleanups and removals, tree removal, pavers, turf installation, turf
+  removal, decorative rock, irrigation installation. Rendered as a marker-less
+  four-column list under the service cards.
+- **Four landscape-specific FAQs**, kept close to the original wording: what work
+  is performed, what drives cost (front vs front-and-back, yard size, new
+  foliage, new pavers), the three-step free consultation, and timing — including
+  that HOA approval can stretch product selection and that most yards finish
+  within a few days.
+- **"On-site or remotely, for free"** — remote planning was not mentioned
+  anywhere in the redesign and is a genuine differentiator. Added to the hero.
+
+The FAQ CSS uses `.wp-block-details:not(.lt-callpop)`, because the call popup is
+also a `<details>` and must not inherit the hairline rules.
