@@ -1,18 +1,16 @@
-# Landscape Design page — ready to apply
+# Landscape Design page
 
-**Not yet on the site.** The Lee's Trees connector dropped out of this chat
-(`enabledInChat: false`), so nothing could be created in WordPress. These two
-files are the finished page, ready to push the moment it is reconnected.
+**Live.** Page ID **1993**, slug `landscape-design-redesign`, status
+**published**: https://leestreesaz.com/landscape-design-redesign/
 
-| File | Goes where |
+| File | Mirrors |
 |---|---|
-| `landscape-design-page.html` | `post_content` of a new page |
-| `landscape-page.css` | appended to Appearance → Customize → Additional CSS |
+| `landscape-design-page.html` | `post_content` of page 1993 |
+| `landscape-page.css` | the `.lt-land` block appended to Customizer Additional CSS |
 
-Intended page: title **Landscape Design & Installation**, slug
-`landscape-design-redesign`, plus the same Astra meta as the irrigation page
-(`site-sidebar-layout=no-sidebar`, `site-content-layout=page-builder`,
-`ast-title-bar-display=disabled`, `ast-featured-img=disabled`).
+Astra meta set as on the irrigation page: `site-sidebar-layout=no-sidebar`,
+`site-content-layout=page-builder`, `ast-title-bar-display=disabled`,
+`ast-featured-img=disabled`.
 
 The existing **Landscape Design draft (page 950) stays untouched** — it is
 unpublished, so unlike the irrigation job there is no live page to compete with.
@@ -46,6 +44,27 @@ the number, mobile keeps the tel: button and sticky footer), `tel:6234005499`
 exactly as the GTM trigger expects, and the same GTM hook
 `.lt-callpop summary, .lt-callpop summary *`.
 
+## Built from the original (page 950)
+
+Page 950 turned out to be far richer than its excerpt, and it supplied most of
+what makes this page specific rather than generic:
+
+- **A landscape-specific Google review from Solitaire P.**, full text, with the
+  original's own link to the listing (`g.co/kgs/P8r2Vp`). This is now the first
+  card in the reviews carousel — it names Mid-Iron sod, pavers, white and black
+  rocks, tree trimming and a new sprinkler system, which is a far better proof
+  of "whole yard" than anything written from scratch.
+- **The real service taxonomy** — Tearouts, Groundwork, Foliage, Accents — with
+  the original's bullet lists kept nearly verbatim, and its line "We don't need a
+  clean slate to work our magic. We can make one."
+- **Four genuine differentiators** now in a hairline row under the section lede:
+  HOA-agreeable designs, desert-friendly water-efficient planting, no
+  sub-contractors without prior approval, insured employees. These are real trust
+  signals and none of them were in the first draft.
+- Its H1 line "From the drawing board to the backyard" became the hero headline.
+- Its srcset also gave verified derivative URLs for attachments **183** and
+  **113**, which were previously unusable.
+
 ## Deliberately absent
 
 **No star ratings and no aggregate score.** I do not have Lee's Trees' actual
@@ -61,15 +80,11 @@ four are already used as service cards. A gallery would have repeated them. Once
 reconnected, fetching `_wp_attachment_metadata` for 119, 113, 111 and the
 remaining pavers/turf shots gives enough for a proper grid.
 
-## Two things needed from you
+## Still needed from you
 
-1. **The Google review you linked** — `share.google` is blocked by this
-   environment's egress policy, so paste the text, rating, date and name and it
-   becomes a fourth review card.
-2. **Page 950's original copy.** "Take inspiration from the original" was done
-   from its excerpt only, since the connector dropped before it could be read.
-   Worth a diff once reconnected in case it names services or claims this page
-   is missing.
+**The Google review you linked** — `share.google` is blocked by this
+environment's egress policy, so paste the text, rating, date and name and it
+becomes a fourth review card.
 
 Also unverified: `Jamie S.` (from page 1855) reads as a strong landscape review
 and was left out on purpose. The excerpt truncates right after the name, and the

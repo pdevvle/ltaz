@@ -175,3 +175,18 @@
   .lt-land .lt-gal .lt-tall img{ height:220px; }
   .lt-land .lt-svc figure.wp-block-image img{ height:200px; }
 }
+
+/* Differentiator row: four short trust statements under the section lede,
+   separated by hairlines rather than boxed, to keep the page airy. */
+.lt-land .lt-diff .wp-block-column{
+  border-left:2px solid var(--g-lt); padding-left:1rem;
+}
+.lt-land .lt-diff p{ margin:0; font-size:.95rem; color:var(--mut); }
+
+/* Service-card bullet lists inherited from the original page's taxonomy. */
+.lt-land .lt-svc ul.wp-block-list{
+  margin:.75rem 0 0; padding-left:1.1rem;
+}
+.lt-land .lt-svc ul.wp-block-list li{
+  color:var(--mut); font-size:.92rem; margin-bottom:.35rem;
+}
